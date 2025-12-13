@@ -1,0 +1,109 @@
+/* ============================= */
+/* SECCIÓN QUIÉNES SOMOS (PRO)  */
+/* ============================= */
+
+.about {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 100px 5%;
+  background: #f5f6fa;
+  gap: 60px;
+  overflow-x: hidden; /* evita scroll horizontal */
+}
+
+/* Divisor diagonal */
+.about::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: #f5f6fa;
+  clip-path: polygon(0 100%, 100% 0, 100% 100%);
+}
+
+/* CONTENIDO */
+.about-content {
+  max-width: 50%;
+}
+
+.about-title {
+  font-size: 40px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #542da0;
+  letter-spacing: -0.5px;
+}
+
+.about p {
+  font-size: 17px;
+  line-height: 1.7;
+  margin-bottom: 18px;
+  color: #333;
+  opacity: 0.95;
+}
+
+/* BOTÓN */
+.about-btn {
+  display: inline-block;
+  margin-top: 20px;
+  background: linear-gradient(135deg, #542da0, #8363e8);
+  padding: 12px 30px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  transition: 0.25s ease;
+}
+
+.about-btn:hover {
+  background: #8887e8;
+}
+
+/* IMAGEN */
+.about-image img {
+  width: 420px;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+  transition: transform 0.4s ease;
+}
+
+.about-image img:hover {
+  transform: translateY(-8px);
+}
+
+/* RESPONSIVE */
+@media (max-width: 980px) {
+  .about {
+    flex-direction: column;
+    text-align: center;
+    padding: 80px 5%;
+  }
+
+  .about-content {
+    max-width: 100%;
+  }
+
+  .about-image img {
+    width: 75%;
+    margin-bottom: 30px;
+  }
+}
+
+/* ANIMATION */
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(25px);
+  animation: fadeUp 0.9s ease forwards;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,104 @@
+.hero {
+  width: 100%;
+  min-height: 100vh;
+  padding: 120px 5% 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: radial-gradient(circle at 20% 20%, #6a3bcc, #1d304b);
+  color: #ffffff;
+  overflow-x: hidden;
+}
+
+.hero-logo {
+  width: 100%;
+  margin-bottom: 30px;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));
+}
+
+.hero-content {
+  max-width: 50%;
+}
+
+.hero h1 {
+  font-size: 50px;           /* bajamos un poco */
+  line-height: 1.25;         /* más respiración */
+  margin-bottom: 25px;       /* más espacio bajo */
+}
+
+
+.hero-subtitle {
+  font-size: 18px;
+  margin-bottom: 40px;
+  opacity: 0.95;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.hero-btn {
+  padding: 14px 28px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: 0.25s ease;
+}
+
+.primary {
+  background: linear-gradient(135deg, #fff, #dcd9ff);
+  color: #542DA0;
+}
+
+.secondary {
+  background: linear-gradient(135deg, #8887E8, #542DA0);
+  color: #fff;
+}
+
+.hero-image img {
+  width: 420px;
+  border-radius: 12px;
+  box-shadow: 0 7px 20px rgba(0,0,0,0.3);
+}
+
+/* ========================= */
+/* RESPONSIVE HERO (MOBILE) */
+/* ========================= */
+@media (max-width: 900px) {
+
+  .hero {
+    padding: 140px 5% 80px;
+    flex-direction: column;
+    text-align: left; /* mantiene estilo corporativo */
+  }
+
+  .hero-content {
+    max-width: 100%;
+  }
+
+  .hero h1 {
+    font-size: 32px;
+    line-height: 1.3;
+  }
+
+  .hero-subtitle {
+    font-size: 16px;
+    margin-bottom: 30px;
+  }
+
+  /* ⛔️ OCULTAR IMAGEN EN RESPONSIVE */
+  .hero-image {
+    display: none;
+  }
+
+  /* BOTONES MÁS GRANDES */
+  .hero-buttons {
+    gap: 15px;
+  }
+
+  .hero-btn {
+    padding: 14px 22px;
+    font-size: 15px;
+  }
+}

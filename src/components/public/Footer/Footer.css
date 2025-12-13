@@ -1,0 +1,120 @@
+/* ===================================== */
+/* FOOTER CORPORATE PRO */
+/* ===================================== */
+
+.footer {
+  background: linear-gradient(135deg, #1D304B, #131f31);
+  padding: 80px 5% 35px;
+  color: #ffffff;
+    padding-top: 40px;
+
+  overflow-x: hidden;
+}
+
+/* MAIN GRID */
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 50px;
+}
+
+/* COLUMNAS */
+.footer-col {
+  flex: 1;
+}
+
+.footer-col h4 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  color: #ffffff;
+}
+
+/* LOGO */
+.footer-logo {
+  width: 150px;
+  margin-bottom: 15px;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));
+}
+
+/* DESCRIPCIÓN */
+.footer-desc {
+  font-size: 15.5px;
+  opacity: 0.9;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+/* LINKS */
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-col ul li {
+  margin-bottom: 10px;
+}
+
+.footer-col ul li a {
+  color: #cfd6e3;
+  text-decoration: none;
+  font-size: 15.5px;
+  transition: 0.25s ease;
+}
+
+.footer-col ul li a:hover {
+  color: #ffffff;
+}
+
+/* CONTACTO */
+.footer-col p {
+  font-size: 15.5px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+/* LINEA FINAL */
+.footer-bottom {
+  text-align: center;
+  padding-top: 35px;
+  margin-top: 40px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  opacity: 0.9;
+}
+
+.footer-bottom p {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* ANIMACIÓN */
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(25px);
+  animation: fadeUp 0.9s ease forwards;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* RESPONSIVE */
+@media(max-width: 980px) {
+  .footer-container {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .footer-col {
+    margin-bottom: 30px;
+  }
+
+  .footer-desc {
+    max-width: 100%;
+  }
+}
