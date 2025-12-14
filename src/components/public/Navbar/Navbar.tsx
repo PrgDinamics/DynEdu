@@ -22,9 +22,8 @@ export default function Navbar() {
           <Link href="/">Inicio</Link>
           <Link href="/nosotros">Quiénes somos</Link>
           <Link href="/libros">Libros</Link>
-          <Link href="/colegios">Colegios</Link>
           <Link href="/contacto">Contacto</Link>
-          <Link href="/dynedu">Dashboard</Link>
+          <Link href="/colegios">Colegios</Link>
         </div>
       </div>
     </nav>

@@ -19,9 +19,6 @@ export default function RootLayout({
         {/* Opción 1: si pusiste el archivo en public/de-logo-icon.ico */}
         <link rel="icon" href="/favicon.ico" />
 
-        {/* Opción 2: si lo tienes en public/images/logos/de-logo-icon.ico
-        <link rel="icon" href="/images/logos/de-logo-icon.ico" />
-        */}
       </head>
       <body>
         <ThemeProvider theme={baselightTheme}>

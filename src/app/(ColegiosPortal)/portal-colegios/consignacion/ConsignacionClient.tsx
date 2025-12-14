@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Autocomplete from "@mui/material/Autocomplete";
-import { createConsignacionAction } from "@/app/(PrgDinamics)/dynedu/consignaciones/actions";
+import { createConsignacionAction } from "@/app/(PrgDinamics)/dynedu/(panel)/consignaciones/actions";
 
 type ProductoBasic = {
   id: number;
