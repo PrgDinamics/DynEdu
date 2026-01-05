@@ -1,0 +1,350 @@
+.libros-page {
+  padding-top: 110px; /* para que no se tape con el navbar fixed */
+}
+
+.libros-hero {
+  width: 92%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 0 20px;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 35px;
+  align-items: center;
+}
+
+.libros-pill {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  background: rgba(84, 45, 160, 0.12);
+  color: #542da0;
+  margin-bottom: 14px;
+}
+
+.libros-title {
+  font-size: 44px;
+  line-height: 1.1;
+  color: #1d304b;
+  margin-bottom: 10px;
+}
+
+.libros-subtitle {
+  font-size: 16px;
+  line-height: 1.7;
+  color: rgba(29, 48, 75, 0.78);
+  max-width: 720px;
+}
+
+.libros-hero-preview {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 26px rgba(0,0,0,0.12);
+  background: linear-gradient(135deg, rgba(84,45,160,0.12), rgba(131,99,232,0.10));
+}
+
+.libros-hero-preview img {
+  width: 100%;
+  display: block;
+}
+
+/* ========================= */
+/* Catalog */
+/* ========================= */
+.catalog {
+  width: 92%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 0 70px;
+}
+
+.catalog-toolbar {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+  align-items: end;
+  margin-top: 16px;
+}
+
+.catalog-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(29,48,75,0.75);
+  margin-bottom: 8px;
+}
+
+.catalog-input {
+  width: 100%;
+  padding: 14px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.12);
+  background: #fff;
+  outline: none;
+  font-size: 14px;
+}
+
+.catalog-input:focus {
+  border-color: rgba(84,45,160,0.45);
+  box-shadow: 0 0 0 4px rgba(84,45,160,0.10);
+}
+
+.catalog-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+}
+
+.catalog-select {
+  width: 100%;
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.12);
+  background: #fff;
+  font-size: 14px;
+  outline: none;
+}
+
+.catalog-reset {
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.14);
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.catalog-reset:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(0,0,0,0.08);
+}
+
+.catalog-meta {
+  margin: 14px 0 18px;
+  font-size: 13px;
+  color: rgba(29,48,75,0.7);
+}
+
+.catalog-error {
+  color: #b00020;
+  font-weight: 700;
+}
+
+.catalog-empty {
+  margin-top: 25px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  border: 1px solid rgba(29,48,75,0.10);
+}
+
+.catalog-empty h3 {
+  color: #1d304b;
+  margin-bottom: 8px;
+}
+
+.catalog-empty p {
+  color: rgba(29,48,75,0.7);
+}
+
+/* Grid */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.catalog-card {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(29,48,75,0.10);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.08);
+  transition: 0.25s ease;
+}
+
+.catalog-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 35px rgba(0,0,0,0.12);
+}
+
+.catalog-cover {
+  height: 190px;
+  background: rgba(84,45,160,0.06);
+}
+
+.catalog-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.catalog-body {
+  padding: 16px;
+}
+
+.catalog-title {
+  font-size: 16px;
+  line-height: 1.35;
+  color: #1d304b;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+.catalog-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.chip {
+  display: inline-flex;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(84,45,160,0.12);
+  color: #542da0;
+}
+
+.chip-soft {
+  background: rgba(29,48,75,0.08);
+  color: rgba(29,48,75,0.85);
+  font-weight: 700;
+}
+
+.catalog-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  height: 42px;
+  padding: 0 14px;
+  font-weight: 800;
+  text-decoration: none;
+  font-size: 13px;
+  transition: 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #542da0, #8363e8);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: #fff;
+  color: #1d304b;
+  border-color: rgba(29,48,75,0.14);
+}
+
+.btn-ghost:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(0,0,0,0.08);
+}
+
+/* Pagination */
+.catalog-pagination {
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.pager {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.14);
+  background: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.pager:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pager-pages {
+  display: flex;
+  gap: 8px;
+}
+
+.pager-page {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.14);
+  background: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.pager-page.active {
+  background: rgba(84,45,160,0.12);
+  border-color: rgba(84,45,160,0.35);
+  color: #542da0;
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  .libros-hero {
+    grid-template-columns: 1fr;
+    padding: 26px 0 10px;
+  }
+
+  .libros-title {
+    font-size: 32px;
+  }
+
+  .libros-hero-right {
+    display: none; /* como en JCTP: en móvil ocultamos el preview */
+  }
+
+  .catalog-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .catalog-reset {
+    grid-column: 1 / -1;
+  }
+
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pager-pages {
+    justify-content: center;
+  }
+}

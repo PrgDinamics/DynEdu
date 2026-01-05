@@ -1,18 +1,15 @@
+import { Suspense } from "react";
+import Contact from "@/components/public/Contact/Contact";
+
+export const metadata = {
+  title: "Contacto | PRG Dinamics",
+  description: "Coordina tu campaña escolar y solicita cotizaciones con PRG Dinamics.",
+};
+
 export default function Page() {
   return (
-    <div
-      style={{
-        padding: "40px",
-        fontSize: "22px",
-        fontWeight: "600",
-        textAlign: "center",
-      }}
-    >
-      Pantalla en construcción 🚧  
-      <br />
-      <span style={{ fontSize: "16px", opacity: 0.6 }}>
-        Próximamente disponible
-      </span>
-    </div>
+    <Suspense fallback={<div style={{ padding: 24 }}>Cargando...</div>}>
+      <Contact />
+    </Suspense>
   );
 }

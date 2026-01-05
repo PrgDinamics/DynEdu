@@ -1,6 +1,7 @@
+import "./consignacion.css";
 import { redirect } from "next/navigation";
-import { Box, Typography } from "@mui/material";
-import { getPortalColegio } from "../actions"
+import { Typography } from "@mui/material";
+import { getPortalColegio } from "../actions";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import ConsignacionClient from "./ConsignacionClient";
 
@@ -34,24 +35,23 @@ export default async function ColegioConsignacionPage() {
   const productos = await fetchProductosBasic();
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        bgcolor: "background.default",
-        p: { xs: 2, md: 3 },
-      }}
-    >
-      <Typography variant="h6" fontWeight={600} mb={2}>
-        Consignación de libros
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Colegio:{" "}
-        <strong>
-          {colegio.nombre || colegio.razon_social || colegio.ruc}
-        </strong>
-      </Typography>
+    <div className="portalConsign">
+      <div className="portalConsign__inner">
+        <header className="portalConsign__header">
+          <div className="portalConsign__left">
+            <div className="portalConsign__pill">PORTAL COLEGIOS</div>
 
-      <ConsignacionClient colegioId={colegio.id} productos={productos} />
-    </Box>
+            <h1 className="portalConsign__title">Consignación de libros</h1>
+
+            <Typography className="portalConsign__school">
+              Colegio:{" "}
+              <b>{colegio.nombre || colegio.razon_social || colegio.ruc}</b>
+            </Typography>
+          </div>
+        </header>
+
+        <ConsignacionClient colegioId={colegio.id} productos={productos} />
+      </div>
+    </div>
   );
 }

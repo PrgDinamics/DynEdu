@@ -1,128 +1,268 @@
-/* ================================ */
-/* NUESTROS LIBROS — CORPORATE PRO */
-/* ================================ */
-
-.books-section {
-  position: relative;
-  padding: 100px 5%;
-  text-align: center;
-  background: #f5f6fa;
-  overflow-x: hidden;
+.booksSection {
+  padding: 70px 0;
+  background: #f6f7fb;
 }
 
-/* Divider diagonal */
-.books-section::before {
-  content: "";
-  position: absolute;
-  top: -60px;
-  width: 100%;
-  height: 60px;
-  background: #ffffff;
-  clip-path: polygon(0 0, 100% 100%, 0 100%);
-}
-
-/* Title */
-.books-title {
-  font-size: 40px;
-  color: #542da0;
-  margin-bottom: 50px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-}
-
-/* GRID */
-.books-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 40px;
+.booksWrap {
+  width: 92%;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-/* CARD */
-.book-card {
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 28px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-  transition: 0.35s ease;
-  cursor: pointer;
-  transform: translateY(0);
-}
-.book-card:hover {
-  transform: translateY(-12px);
-  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.12);
-}
-
-/* IMAGE */
-.book-image img {
-  width: 100%;
-  height: 230px;
-  object-fit: cover;
-  border-radius: 10px;
-  transition: transform 0.4s ease;
-}
-
-.book-card:hover .book-image img {
-  transform: scale(1.05);
-}
-
-/* TEXT */
-.book-card h3 {
-  color: #1d304b;
-  margin: 18px 0 8px;
-  font-size: 21px;
-  font-weight: 600;
-}
-
-.book-card p {
-  font-size: 15.5px;
-  color: #555;
-  line-height: 1.6;
+.booksHeader {
   margin-bottom: 22px;
 }
 
-/* BUTTON */
-.book-btn {
-  display: inline-block;
-  background: linear-gradient(135deg, #542da0, #8363e8);
+.booksBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(84, 45, 160, 0.10);
+  border: 1px solid rgba(84, 45, 160, 0.18);
+  color: #5a35b5;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+}
+
+.booksTitle {
+  margin: 10px 0 8px;
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: 900;
+  color: #111827;
+}
+
+.booksSubtitle {
+  max-width: 860px;
+  font-size: 16px;
+  color: rgba(17, 24, 39, 0.72);
+  line-height: 1.7;
+}
+
+.booksGrid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 18px;
+  align-items: stretch;
+}
+
+/* Left content */
+.booksContent {
+  display: grid;
+  gap: 14px;
+}
+
+.booksCard {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  padding: 18px;
+}
+
+.booksCardTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.booksCardText {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: rgba(17, 24, 39, 0.72);
+}
+
+.booksList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.booksList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(17, 24, 39, 0.78);
+}
+
+.booksIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(84, 45, 160, 0.10);
+  border: 1px solid rgba(84, 45, 160, 0.18);
+  color: #5a35b5;
+  flex: 0 0 auto;
+}
+
+.booksActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.booksBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #5a35b5;
   color: #fff;
-  padding: 12px 24px;
-  border-radius: 10px;
   text-decoration: none;
-  font-size: 15px;
-  font-weight: 600;
-  transition: 0.25s ease;
+  font-weight: 800;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 22px rgba(90, 53, 181, 0.25);
+  transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
-.book-btn:hover {
-  background: #6d5af7;
+.booksBtnPrimary:hover {
+  transform: translateY(-1px);
+  opacity: 0.96;
 }
 
-/* BOTTOM BUTTON */
-.books-more {
-  margin-top: 55px;
-}
-
-.books-more-btn {
-  padding: 16px 34px;
-  border-radius: 10px;
+.booksBtnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #5a35b5;
   text-decoration: none;
-  background: #1d304b;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 600;
-  transition: 0.25s ease;
+  font-weight: 800;
+  border: 1px solid rgba(90, 53, 181, 0.25);
+  transition: transform 0.18s ease, background 0.18s ease;
 }
 
-.books-more-btn:hover {
-  background: #8363e8;
+.booksBtnSecondary:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 1);
 }
 
-/* RESPONSIVE */
+/* Steps */
+.booksSteps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.booksStep {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.booksStepNum {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(84, 45, 160, 0.12);
+  border: 1px solid rgba(84, 45, 160, 0.18);
+  color: #5a35b5;
+  font-weight: 900;
+  flex: 0 0 auto;
+}
+
+.booksStepText {
+  display: grid;
+  gap: 2px;
+}
+
+.booksStepText strong {
+  font-size: 13px;
+  color: #111827;
+}
+
+.booksStepText span {
+  font-size: 12px;
+  color: rgba(17, 24, 39, 0.68);
+}
+
+/* Right image */
+.booksImageCard {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  background: radial-gradient(
+      circle at 30% 20%,
+      rgba(90, 53, 181, 0.35),
+      transparent 55%
+    ),
+    linear-gradient(135deg, rgba(84, 45, 160, 0.26), rgba(29, 48, 75, 0.26));
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.14);
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.booksImage {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.22));
+  transform: translateY(4px);
+}
+
+.booksImageGlow {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(
+    circle at 30% 20%,
+    rgba(120, 86, 220, 0.35),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* Responsive */
 @media (max-width: 980px) {
-  .books-grid {
+  .booksTitle {
+    font-size: 36px;
+  }
+
+  .booksGrid {
     grid-template-columns: 1fr;
-    gap: 30px;
+  }
+
+  .booksImageCard {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 520px) {
+  .booksSection {
+    padding: 54px 0;
+  }
+
+  .booksTitle {
+    font-size: 30px;
+  }
+
+  .booksSteps {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,9 +1,6 @@
 .contact {
   padding: 78px 16px;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(120, 86, 220, 0.18), transparent 55%),
-    radial-gradient(circle at 82% 28%, rgba(84, 45, 160, 0.14), transparent 52%),
-    #f5f6fa;
+  background: #f5f6fa;
 }
 
 .contact-inner {
@@ -15,11 +12,8 @@
   align-items: start;
 }
 
-/* left */
 .contact-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: inline-block;
   padding: 8px 14px;
   border-radius: 999px;
   font-weight: 900;
@@ -27,48 +21,30 @@
   letter-spacing: 0.6px;
   background: rgba(84, 45, 160, 0.10);
   color: #542da0;
-  border: 1px solid rgba(84, 45, 160, 0.16);
+  border: 1px solid rgba(84, 45, 160, 0.14);
   margin-bottom: 12px;
 }
 
-.contactTitle {
-  font-size: clamp(26px, 3vw, 44px);
-  line-height: 1.05;
+.contact-title {
+  font-size: clamp(24px, 2.8vw, 36px);
   font-weight: 900;
-  letter-spacing: -0.6px;
+  letter-spacing: -0.4px;
   margin: 0 0 10px;
   color: #1d304b;
-  max-width: 20ch;
-  text-wrap: balance;
-}
-
-.contactTitle span {
-  color: #542da0;
 }
 
 .contact-subtitle {
-  margin: 0 0 18px;
-  line-height: 1.75;
+  margin: 0 0 16px;
+  line-height: 1.7;
   color: rgba(29, 48, 75, 0.78);
   max-width: 62ch;
 }
 
-/* cards */
 .card {
-  position: relative;
-  background: rgba(255, 255, 255, 0.88);
+  background: #ffffff;
   border: 1px solid rgba(29, 48, 75, 0.10);
-  border-radius: 18px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-}
-
-.card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 18% 10%, rgba(120, 86, 220, 0.14), transparent 60%);
-  pointer-events: none;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
 }
 
 .contact-info {
@@ -76,69 +52,44 @@
 }
 
 .info-item {
-  position: relative;
   display: flex;
   gap: 12px;
-  padding: 12px 10px;
-  border-radius: 14px;
-  transition: transform 0.18s ease, background 0.18s ease;
-}
-
-.info-item:hover {
-  transform: translateY(-1px);
-  background: rgba(84, 45, 160, 0.04);
+  padding: 12px 8px;
+  border-radius: 12px;
 }
 
 .info-item + .info-item {
   border-top: 1px solid rgba(29, 48, 75, 0.08);
 }
 
-/* ✅ Icon bubble (Lucide) */
-.infoIcon {
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(84, 45, 160, 0.10);
-  border: 1px solid rgba(84, 45, 160, 0.18);
-  color: #542da0;
-  flex: 0 0 auto;
-  box-shadow: 0 10px 20px rgba(84, 45, 160, 0.10);
-}
-
-/* (compat) si en algún lado todavía existe .dot */
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   margin-top: 7px;
-  background: rgba(84, 45, 160, 0.70);
-  box-shadow: 0 0 0 4px rgba(84, 45, 160, 0.10);
+  background: rgba(84, 45, 160, 0.65);
   flex: 0 0 auto;
 }
 
 .info-label {
   font-size: 12px;
   font-weight: 900;
-  color: rgba(29, 48, 75, 0.70);
+  color: rgba(29, 48, 75, 0.72);
   margin-bottom: 2px;
 }
 
 .info-value {
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 800;
   color: #1d304b;
 }
 
 .contact-note {
   margin-top: 12px;
   font-size: 12.5px;
-  color: rgba(29, 48, 75, 0.60);
+  color: rgba(29, 48, 75, 0.62);
 }
 
-/* right */
 .contact-right {
   padding: 16px;
 }
@@ -167,17 +118,15 @@
 .field textarea {
   width: 100%;
   padding: 14px 12px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid rgba(29, 48, 75, 0.12);
-  background: rgba(255, 255, 255, 0.94);
+  background: #fff;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field textarea {
   resize: vertical;
-  min-height: 140px;
 }
 
 .field input:focus,
@@ -193,7 +142,7 @@
   color: #b00020;
   padding: 10px 12px;
   border-radius: 12px;
-  font-weight: 900;
+  font-weight: 800;
   font-size: 13px;
 }
 
@@ -204,41 +153,32 @@
   color: rgba(0, 120, 74, 0.95);
   padding: 10px 12px;
   border-radius: 12px;
-  font-weight: 900;
+  font-weight: 800;
   font-size: 13px;
 }
 
 .submit {
-  height: 50px;
-  border-radius: 16px;
+  height: 46px;
+  border-radius: 12px;
   border: none;
   cursor: pointer;
   font-weight: 900;
   color: #fff;
-  background: linear-gradient(135deg, #4c2ea8, #7a5be1);
-  box-shadow: 0 16px 28px rgba(84, 45, 160, 0.18);
-  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+  background: linear-gradient(135deg, #542da0, #8363e8);
+  transition: 0.2s ease;
 }
 
 .submit:hover {
-  filter: brightness(1.04);
+  filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
 .submit:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-  transform: none;
 }
 
-/* ✅ Button inner layout with icon */
-.submitInner {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
+/* animation */
 .fade-in-up {
   opacity: 0;
   transform: translateY(18px);
@@ -260,22 +200,6 @@
 
   .form-row {
     grid-template-columns: 1fr;
-  }
-
-  .contactTitle {
-    max-width: 26ch;
-    font-size: clamp(26px, 6.2vw, 36px);
-  }
-}
-
-@media (max-width: 520px) {
-  .contact {
-    padding: 60px 16px;
-  }
-
-  .submit {
-    height: 48px;
-    border-radius: 14px;
   }
 }
 

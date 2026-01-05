@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
 import "./Navbar.css";
 
 type NavItem = { href: string; label: string };
@@ -41,24 +40,24 @@ export default function Navbar() {
   }, [open]);
 
   useEffect(() => {
+    // bloquea scroll cuando el menú móvil está abierto
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [open]);
 
+  // cierra menú al navegar
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname?.startsWith(href);
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname?.startsWith(href));
 
   return (
     <>
       <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
         <div className="nav-container">
-          {/* Desktop: SOLO texto */}
           <Link href="/" className="logo" aria-label="PRG Dinamics home">
             PRG Dinamics
           </Link>
@@ -76,7 +75,7 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Mobile toggle: icono lucide */}
+          {/* Mobile toggle */}
           <button
             className={`nav-burger ${open ? "open" : ""}`}
             type="button"
@@ -84,7 +83,9 @@ export default function Navbar() {
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
-            {open ? <X size={20} /> : <Menu size={20} />}
+            <span />
+            <span />
+            <span />
           </button>
         </div>
       </nav>
@@ -96,25 +97,11 @@ export default function Navbar() {
           aria-label="Close menu backdrop"
           onClick={() => setOpen(false)}
         />
-
         <div className="nav-mobile-card" role="dialog" aria-label="Mobile menu">
           <div className="nav-mobile-header">
-            {/* Mobile: LOGO SOLO EN POPUP */}
-            <div className="nav-mobile-brand">
-              <img
-                className="nav-mobile-logo"
-                src="/images/logos/de-logo-white.png"
-                alt="PRG Dinamics"
-              />
-            </div>
-
-            <button
-              className="nav-close"
-              onClick={() => setOpen(false)}
-              aria-label="Close menu"
-              type="button"
-            >
-              <X size={18} />
+            <span className="nav-mobile-title">Menú</span>
+            <button className="nav-close" onClick={() => setOpen(false)} aria-label="Close menu">
+              ✕
             </button>
           </div>
 
@@ -130,7 +117,11 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* ✅ Eliminado: Intranet DynEdu */}
+          <div className="nav-mobile-cta">
+            <Link href="/dynedu" className="nav-cta-btn">
+              Intranet DynEdu
+            </Link>
+          </div>
         </div>
       </div>
     </>

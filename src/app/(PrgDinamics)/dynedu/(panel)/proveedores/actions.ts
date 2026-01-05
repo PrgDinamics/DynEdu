@@ -10,7 +10,7 @@ import type {
   ProveedorContactoInput,
 } from "@/modules/dynedu/types";
 
-const BASE_PATH = "/prgdinamics/dynedu/proveedores";
+const BASE_PATH = "/dynedu/proveedores";
 
 // -------------------------------------
 // Helpers

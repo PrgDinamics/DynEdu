@@ -1,35 +1,37 @@
 import "./hero.css";
-import "./animations.css";
 import Link from "next/link";
 
 export default function Hero() {
   return (
-    <section className="hero fade-in">
-      <div className="hero-content">
+    <section className="hero">
+      <div className="hero-inner hero-inner--center fade-in">
         <img
           src="/images/logos/de-logo-white.png"
-          className="hero-logo"
+          className="hero-logo hero-logo--center"
           alt="PRG Dinamics logo"
+          loading="eager"
         />
 
-        <h1>
-          Soluciones editoriales
-          <br />
-          para instituciones educativas
-        </h1>
+        <div className="hero-content hero-content--center">
+          <h1 className="hero-title">
+            Soluciones editoriales
+            <br />
+            para instituciones educativas
+          </h1>
 
-        <p className="hero-subtitle">
-          Materiales educativos diseñados con calidad, confianza y compromiso.
-        </p>
+          <p className="hero-subtitle">
+            Materiales educativos diseñados con calidad, confianza y compromiso.
+          </p>
 
-        <div className="hero-buttons">
-          <Link href="/libros" className="hero-btn primary">Ver libros</Link>
-          <Link href="/colegios" className="hero-btn secondary">Servicios</Link>
+          <div className="hero-buttons hero-buttons--center">
+            <Link href="/libros" className="hero-btn hero-btn--primary">
+              Ver libros
+            </Link>
+            <Link href="/colegios" className="hero-btn hero-btn--secondary">
+              Servicios
+            </Link>
+          </div>
         </div>
-      </div>
-
-      <div className="hero-image float">
-        <img src="/images/web/hero-books.png" alt="books" />
       </div>
     </section>
   );

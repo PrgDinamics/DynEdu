@@ -1,20 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Button,
   Card,
   CardContent,
   IconButton,
-  MenuItem,
+  InputAdornment,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
 import Autocomplete from "@mui/material/Autocomplete";
 import { createConsignacionAction } from "@/app/(PrgDinamics)/dynedu/(panel)/consignaciones/actions";
+import {
+  CalendarDays,
+  StickyNote,
+  BookOpen,
+  Hash,
+  Plus,
+  Save,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  ClipboardList,
+} from "lucide-react";
 
 type ProductoBasic = {
   id: number;
@@ -34,7 +45,7 @@ type Props = {
 
 const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
   const [fechaSalida, setFechaSalida] = useState<string>(
-    new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    new Date().toISOString().slice(0, 10)
   );
   const [observaciones, setObservaciones] = useState<string>("");
   const [rows, setRows] = useState<ConsignacionRow[]>([
@@ -43,6 +54,12 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const summary = useMemo(() => {
+    const valid = rows.filter((r) => r.productoId && r.cantidad && Number(r.cantidad) > 0);
+    const totalUnits = valid.reduce((acc, r) => acc + Number(r.cantidad), 0);
+    return { items: valid.length, totalUnits };
+  }, [rows]);
 
   const handleAddRow = () => {
     setRows((prev) => [...prev, { productoId: "", cantidad: "" }]);
@@ -81,7 +98,7 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
 
     try {
       const validItems = rows
-        .filter((r) => r.productoId && r.cantidad && r.cantidad > 0)
+        .filter((r) => r.productoId && r.cantidad && Number(r.cantidad) > 0)
         .map((r) => ({
           productoId: Number(r.productoId),
           cantidad: Number(r.cantidad),
@@ -119,6 +136,52 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
     <Card sx={{ borderRadius: 3 }}>
       <CardContent>
         <Stack spacing={3}>
+          {/* Summary */}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Stack direction="row" spacing={1.2} alignItems="center">
+              <ClipboardList size={18} />
+              <Typography variant="subtitle1" fontWeight={900}>
+                Registro de consignación
+              </Typography>
+            </Stack>
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box
+                sx={{
+                  px: 1.4,
+                  py: 0.6,
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  bgcolor: "rgba(255,255,255,0.08)",
+                }}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                  Items: <b>{summary.items}</b>
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  px: 1.4,
+                  py: 0.6,
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  bgcolor: "rgba(255,255,255,0.08)",
+                }}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                  Total unidades: <b>{summary.totalUnits}</b>
+                </Typography>
+              </Box>
+            </Stack>
+          </Stack>
+
+          {/* Top fields */}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               type="date"
@@ -128,18 +191,34 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
               value={fechaSalida}
               onChange={(e) => setFechaSalida(e.target.value)}
               InputLabelProps={{ shrink: true }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarDays size={18} />
+                  </InputAdornment>
+                ),
+              }}
             />
+
             <TextField
               label="Observaciones (opcional)"
               size="small"
               fullWidth
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <StickyNote size={18} />
+                  </InputAdornment>
+                ),
+              }}
             />
           </Stack>
 
+          {/* Rows */}
           <Box>
-            <Typography variant="subtitle2" mb={1}>
+            <Typography variant="subtitle2" mb={1} fontWeight={900}>
               Libros en consignación
             </Typography>
 
@@ -157,7 +236,6 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
                     spacing={1}
                     alignItems={{ xs: "flex-start", sm: "center" }}
                   >
-                    {/* Autocomplete con búsqueda */}
                     <Autocomplete
                       size="small"
                       fullWidth
@@ -178,9 +256,19 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
                           {...params}
                           label="Producto"
                           placeholder="Buscar por código o nombre"
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start">
+                                  <BookOpen size={18} />
+                                </InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            ),
+                          }}
                         />
                       )}
-                      // Permite que escriban algo que no coincide y deje el valor vacío
                       isOptionEqualToValue={(option, value) =>
                         option.id === value.id
                       }
@@ -196,14 +284,26 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
                         handleChangeRow(index, "cantidad", e.target.value)
                       }
                       inputProps={{ min: 0 }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Hash size={18} />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
 
                     {rows.length > 1 && (
                       <IconButton
                         aria-label="Eliminar fila"
                         onClick={() => handleRemoveRow(index)}
+                        sx={{
+                          borderRadius: 2,
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          bgcolor: "rgba(255,255,255,0.06)",
+                        }}
                       >
-                        <DeleteIcon fontSize="small" />
+                        <Trash2 size={18} />
                       </IconButton>
                     )}
                   </Stack>
@@ -211,27 +311,42 @@ const ConsignacionClient: React.FC<Props> = ({ colegioId, productos }) => {
               })}
             </Stack>
 
-            <Button sx={{ mt: 2 }} variant="outlined" onClick={handleAddRow}>
+            <Button
+              sx={{ mt: 2 }}
+              variant="outlined"
+              onClick={handleAddRow}
+              startIcon={<Plus size={18} />}
+            >
               Agregar libro
             </Button>
           </Box>
 
+          {/* Feedback */}
           {error && (
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-          )}
-          {message && (
-            <Typography color="success.main" variant="body2">
-              {message}
-            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <AlertTriangle size={18} />
+              <Typography color="error" variant="body2">
+                {error}
+              </Typography>
+            </Stack>
           )}
 
+          {message && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CheckCircle2 size={18} />
+              <Typography color="success.main" variant="body2">
+                {message}
+              </Typography>
+            </Stack>
+          )}
+
+          {/* Submit */}
           <Box>
             <Button
               variant="contained"
               onClick={handleSubmit}
               disabled={submitting}
+              startIcon={<Save size={18} />}
             >
               {submitting ? "Guardando..." : "Registrar consignación"}
             </Button>

@@ -1,5 +1,6 @@
 // src/app/(PrgDinamics)/dynedu/productos/page.tsx
 
+
 import { fetchProductos } from "./actions";
 import ProductsClient from "./ProductsClient";
 

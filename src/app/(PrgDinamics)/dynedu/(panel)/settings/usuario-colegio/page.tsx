@@ -1,5 +1,3 @@
-
-
 import { fetchColegios } from "./actions";
 import UsuarioColegio from "./UsuarioColegio";
 

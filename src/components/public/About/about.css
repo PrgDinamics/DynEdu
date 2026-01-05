@@ -1,109 +1,244 @@
-/* ============================= */
-/* SECCIÓN QUIÉNES SOMOS (PRO)  */
-/* ============================= */
+.aboutSection {
+  padding: 80px 0;
+  background: radial-gradient(
+      circle at 20% 10%,
+      rgba(120, 86, 220, 0.22),
+      transparent 55%
+    ),
+    radial-gradient(circle at 80% 30%, rgba(84, 45, 160, 0.18), transparent 52%),
+    #f6f7fb;
+}
 
-.about {
-  position: relative;
-  display: flex;
+.aboutWrap {
+  width: 92%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.aboutGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 22px;
   align-items: center;
-  justify-content: space-between;
-  padding: 100px 5%;
-  background: #f5f6fa;
-  gap: 60px;
-  overflow-x: hidden; /* evita scroll horizontal */
 }
 
-/* Divisor diagonal */
-.about::before {
-  content: "";
-  position: absolute;
-  top: -60px;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  background: #f5f6fa;
-  clip-path: polygon(0 100%, 100% 0, 100% 100%);
-}
-
-/* CONTENIDO */
-.about-content {
-  max-width: 50%;
-}
-
-.about-title {
-  font-size: 40px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  color: #542da0;
-  letter-spacing: -0.5px;
-}
-
-.about p {
-  font-size: 17px;
-  line-height: 1.7;
-  margin-bottom: 18px;
-  color: #333;
-  opacity: 0.95;
-}
-
-/* BOTÓN */
-.about-btn {
+.aboutKicker {
   display: inline-block;
-  margin-top: 20px;
-  background: linear-gradient(135deg, #542da0, #8363e8);
-  padding: 12px 30px;
-  border-radius: 10px;
-  text-decoration: none;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  transition: 0.25s ease;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  color: rgba(90, 53, 181, 0.9);
+  margin-bottom: 10px;
 }
 
-.about-btn:hover {
-  background: #8887e8;
+.aboutTitle {
+  margin: 0 0 12px;
+  font-size: 46px;
+  line-height: 1.05;
+  font-weight: 900;
+  color: #2a1b4a;
 }
 
-/* IMAGEN */
-.about-image img {
-  width: 420px;
+.aboutText {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: rgba(17, 24, 39, 0.74);
+}
+
+.aboutFeatures {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.aboutFeature {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+}
+
+.aboutIcon {
+  width: 38px;
+  height: 38px;
   border-radius: 14px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
-  transition: transform 0.4s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(84, 45, 160, 0.12);
+  border: 1px solid rgba(84, 45, 160, 0.18);
+  color: #5a35b5;
+  flex: 0 0 auto;
 }
 
-.about-image img:hover {
-  transform: translateY(-8px);
+.aboutFeatureText {
+  display: grid;
+  gap: 2px;
 }
 
-/* RESPONSIVE */
+.aboutFeatureText strong {
+  font-size: 14px;
+  color: #111827;
+}
+
+.aboutFeatureText span {
+  font-size: 12px;
+  color: rgba(17, 24, 39, 0.66);
+}
+
+.aboutPills {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.aboutPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(90, 53, 181, 0.16);
+  color: rgba(17, 24, 39, 0.74);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.aboutActions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.aboutBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #5a35b5;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 900;
+  box-shadow: 0 12px 22px rgba(90, 53, 181, 0.25);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.aboutBtnPrimary:hover {
+  transform: translateY(-1px);
+  opacity: 0.96;
+}
+
+.aboutBtnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #5a35b5;
+  text-decoration: none;
+  font-weight: 900;
+  border: 1px solid rgba(90, 53, 181, 0.25);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.aboutBtnSecondary:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 1);
+}
+
+/* Image */
+.aboutRight {
+  display: grid;
+  place-items: center;
+}
+
+.aboutImageCard {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    rgba(84, 45, 160, 0.22),
+    rgba(29, 48, 75, 0.18)
+  );
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.14);
+  padding: 18px;
+}
+
+.aboutImage {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 18px;
+  filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.18));
+}
+
+.aboutGlow {
+  position: absolute;
+  inset: -35%;
+  background: radial-gradient(
+    circle at 30% 20%,
+    rgba(120, 86, 220, 0.35),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* Responsive */
 @media (max-width: 980px) {
-  .about {
-    flex-direction: column;
-    text-align: center;
-    padding: 80px 5%;
+  .aboutGrid {
+    grid-template-columns: 1fr;
   }
 
-  .about-content {
-    max-width: 100%;
+  .aboutTitle {
+    font-size: 36px;
   }
 
-  .about-image img {
-    width: 75%;
-    margin-bottom: 30px;
+  .aboutImageCard {
+    max-width: 560px;
   }
 }
 
-/* ANIMATION */
-.fade-in-up {
-  opacity: 0;
-  transform: translateY(25px);
-  animation: fadeUp 0.9s ease forwards;
-}
+@media (max-width: 520px) {
+  .aboutSection {
+    padding: 60px 0;
+  }
 
-@keyframes fadeUp {
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .aboutTitle {
+    font-size: 30px;
   }
 }
+
+/* Reverse layout (image left, text right) */
+.aboutReverse .aboutGrid {
+  grid-template-columns: 0.9fr 1.1fr;
+}
+
+/* En móvil, mantenemos el orden más cómodo: texto arriba, imagen abajo */
+@media (max-width: 980px) {
+  .aboutReverse .aboutGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .aboutReverse .aboutRight {
+    order: 2;
+  }
+
+  .aboutReverse .aboutLeft {
+    order: 1;
+  }
+}
+

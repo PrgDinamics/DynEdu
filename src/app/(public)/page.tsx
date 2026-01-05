@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Hero from "@/components/public/Hero/Hero";
 import About from "@/components/public/About/About";
 import Books from "@/components/public/Books/Books";
@@ -9,7 +10,9 @@ export default function HomePage() {
       <Hero />
       <About />
       <Books />
-      <Contact />
+      <Suspense fallback={<div style={{ padding: 24 }}>Cargando...</div>}>
+        <Contact />
+      </Suspense>
     </>
   );
 }

@@ -33,8 +33,8 @@ const YearFilterBar: React.FC<Props> = ({
 
     const query = params.toString();
     const url = query
-      ? `/prgdinamics/dynedu?${query}`
-      : `/prgdinamics/dynedu`;
+      ? `/dynedu?${query}`
+      : `/dynedu`;
 
     router.push(url);
   };

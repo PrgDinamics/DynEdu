@@ -1,7 +1,10 @@
-// src/lib/supabaseClient.ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+  },
+});

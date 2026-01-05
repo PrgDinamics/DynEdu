@@ -1,99 +1,152 @@
 /* ===================================== */
-/* FOOTER CORPORATE PRO */
+/* FOOTER - JCTP STYLE (CLEAN + RESPONSIVE) */
 /* ===================================== */
 
 .footer {
-  background: linear-gradient(135deg, #1D304B, #131f31);
-  padding: 80px 5% 35px;
+  background: radial-gradient(circle at 25% 20%, rgba(136, 135, 232, 0.18), transparent 45%),
+    linear-gradient(135deg, #1d304b, #131f31);
   color: #ffffff;
-    padding-top: 40px;
-
-  overflow-x: hidden;
+  padding: 54px 16px 26px;
+  overflow: hidden;
 }
 
-/* MAIN GRID */
-.footer-container {
-  max-width: 1200px;
+.footer-inner {
+  max-width: 1180px;
   margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  gap: 50px;
 }
 
-/* COLUMNAS */
+/* GRID */
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* COLS */
 .footer-col {
-  flex: 1;
+  min-width: 0;
 }
 
-.footer-col h4 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 18px;
-  color: #ffffff;
+.footer-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 6px 0 16px;
+  letter-spacing: 0.2px;
 }
 
-/* LOGO */
+/* BRAND */
 .footer-logo {
   width: 150px;
-  margin-bottom: 15px;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));
+  height: auto;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.28));
 }
 
-/* DESCRIPCIÓN */
 .footer-desc {
-  font-size: 15.5px;
-  opacity: 0.9;
-  max-width: 320px;
+  font-size: 15px;
   line-height: 1.6;
+  opacity: 0.92;
+  max-width: 360px;
+  margin: 0 0 18px;
+}
+
+/* SIMPLE SOCIAL BUTTONS (placeholders) */
+.footer-social {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.footer-socialBtn {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 900;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.footer-socialBtn:hover {
+  transform: translateY(-2px);
+  opacity: 0.92;
 }
 
 /* LINKS */
-.footer-col ul {
+.footer-links {
   list-style: none;
   padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
 }
 
-.footer-col ul li {
-  margin-bottom: 10px;
-}
-
-.footer-col ul li a {
-  color: #cfd6e3;
+.footer-links a {
+  color: rgba(207, 214, 227, 0.95);
   text-decoration: none;
-  font-size: 15.5px;
-  transition: 0.25s ease;
+  font-size: 15px;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.footer-col ul li a:hover {
-  color: #ffffff;
+.footer-links a:hover {
+  opacity: 1;
+  transform: translateX(2px);
 }
 
-/* CONTACTO */
-.footer-col p {
-  font-size: 15.5px;
-  opacity: 0.9;
-  margin-bottom: 8px;
+/* CONTACT */
+.footer-contact {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
 }
 
-/* LINEA FINAL */
+.footer-contactItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  opacity: 0.92;
+  line-height: 1.5;
+}
+
+.footer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 7px;
+  background: rgba(255, 255, 255, 0.65);
+  flex: 0 0 auto;
+}
+
+/* BOTTOM */
 .footer-bottom {
   text-align: center;
-  padding-top: 35px;
-  margin-top: 40px;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 22px;
+  margin-top: 34px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   opacity: 0.9;
 }
 
 .footer-bottom p {
-  font-size: 14px;
-  opacity: 0.8;
+  font-size: 13.5px;
+  opacity: 0.82;
+  margin: 0;
 }
 
-/* ANIMACIÓN */
+/* ANIMATION */
 .fade-in-up {
   opacity: 0;
-  transform: translateY(25px);
-  animation: fadeUp 0.9s ease forwards;
+  transform: translateY(18px);
+  animation: fadeUp 0.85s ease forwards;
 }
 
 @keyframes fadeUp {
@@ -104,17 +157,34 @@
 }
 
 /* RESPONSIVE */
-@media(max-width: 980px) {
-  .footer-container {
-    flex-direction: column;
-    text-align: center;
+@media (max-width: 980px) {
+  .footer {
+    padding: 44px 16px 22px;
   }
 
-  .footer-col {
-    margin-bottom: 30px;
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 26px;
   }
 
   .footer-desc {
     max-width: 100%;
+  }
+
+  .footer-bottom {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .footer-socialBtn,
+  .footer-links a {
+    transition: none !important;
   }
 }
