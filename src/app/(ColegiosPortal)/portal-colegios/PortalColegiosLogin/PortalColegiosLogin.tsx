@@ -2,7 +2,7 @@
 
 import "./portalColegiosLogin.css";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -14,9 +14,9 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const LOGO_SRC = "/images/logos/de-logo-white.png";
+import { loginColegioAction } from "../actions";
 
-// Cambia esto por tu WhatsApp real (o setea env NEXT_PUBLIC_SUPPORT_WHATSAPP)
+const LOGO_SRC = "/images/logos/de-logo-white.png";
 const DEFAULT_WHATSAPP = "51999999999";
 
 export default function PortalColegiosLogin() {
@@ -25,15 +25,18 @@ export default function PortalColegiosLogin() {
   const [ruc, setRuc] = useState("");
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [isPending, startTransition] = useTransition();
 
   const whatsappNumber =
     process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || DEFAULT_WHATSAPP;
 
   const whatsappHref = useMemo(() => {
     const text = encodeURIComponent(
-      `Hola, necesito acceso al Portal de Colegios (DynEdu).\n\nRUC: ${ruc || "(aún no ingresado)"}\nMotivo: Solicitar/recuperar código de acceso.`
+      `Hola, necesito acceso al Portal de Colegios (DynEdu).\n\nRUC: ${
+        ruc || "(aún no ingresado)"
+      }\nMotivo: Solicitar/recuperar código de acceso.`
     );
     return `https://wa.me/${whatsappNumber}?text=${text}`;
   }, [whatsappNumber, ruc]);
@@ -43,6 +46,7 @@ export default function PortalColegiosLogin() {
     setError(null);
 
     const cleanRuc = ruc.replace(/\D/g, "");
+
     if (cleanRuc.length !== 11) {
       setError("El RUC debe tener 11 dígitos.");
       return;
@@ -52,24 +56,22 @@ export default function PortalColegiosLogin() {
       return;
     }
 
-    setLoading(true);
+    startTransition(async () => {
+      const res = await loginColegioAction({
+        ruc: cleanRuc,
+        accessKey: code.trim(),
+      });
 
-    try {
-      /**
-       * ✅ Aquí conectas tu validación real (Supabase / API)
-       * Ejemplo:
-       *  - const res = await fetch("/api/portal-colegios/login", { ... })
-       *  - si ok => router.push("/portal-colegios/consignacion")
-       */
-      await new Promise((r) => setTimeout(r, 450)); // mock breve
+      if (!res.success) {
+        setError(res.error || "No se pudo validar el acceso.");
+        return;
+      }
 
-      // Redirige al flujo real:
+      // ✅ Cookie ya quedó seteada en el server action
+      // Refresh para que server components lean cookie, luego push
+      router.refresh();
       router.push("/portal-colegios/consignacion");
-    } catch (err) {
-      setError("No se pudo validar el acceso. Intenta nuevamente.");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -151,23 +153,28 @@ export default function PortalColegiosLogin() {
 
             {error && <div className="pcError">{error}</div>}
 
-            <button className="pcPrimary" type="submit" disabled={loading}>
+            <button className="pcPrimary" type="submit" disabled={isPending}>
               <span className="pcPrimaryIcon">
                 <LogIn size={18} />
               </span>
-              <span>{loading ? "Validando..." : "Ingresar"}</span>
+              <span>{isPending ? "Validando..." : "Ingresar"}</span>
               <span className="pcPrimaryArrow">
                 <ArrowRight size={18} />
               </span>
             </button>
 
-            <a className="pcSecondary" href={whatsappHref} target="_blank" rel="noreferrer">
+            <a
+              className="pcSecondary"
+              href={whatsappHref}
+              target="_blank"
+              rel="noreferrer"
+            >
               <MessageCircle size={18} />
               Recuperar acceso por WhatsApp
             </a>
 
             <div className="pcFooterNote">
-              El acceso es validado manualmente por campaña.
+              El acceso es validado por campaña (RUC + código).
             </div>
           </form>
         </div>

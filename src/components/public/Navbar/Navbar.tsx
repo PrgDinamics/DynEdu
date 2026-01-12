@@ -18,7 +18,7 @@ export default function Navbar() {
       { href: "/", label: "Inicio" },
       { href: "/nosotros", label: "Quiénes somos" },
       { href: "/libros", label: "Libros" },
-      { href: "/colegios", label: "Colegios" },
+      { href: "colegios.dynamiceducationperu.com/", label: "Colegios" },
       { href: "/contacto", label: "Contacto" },
     ],
     []
@@ -130,7 +130,6 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* ✅ Eliminado: Intranet DynEdu */}
         </div>
       </div>
     </>

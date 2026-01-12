@@ -106,7 +106,46 @@ type TrackingClientProps = {
   pedidoRealDetalle: PedidoDetalle;
 };
 
-export default function TrackingClient({
+/**
+ * Wrapper to avoid hydration mismatch with MUI:
+ * - Server render outputs only a lightweight loader (no MUI markup)
+ * - After mount, we render the real UI in TrackingClientInner
+ * This also avoids breaking hook order rules.
+ */
+export default function TrackingClient(props: TrackingClientProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+          background:
+            "linear-gradient(135deg, rgba(42,20,94,1) 0%, rgba(17,26,46,1) 60%, rgba(11,18,32,1) 100%)",
+          color: "rgba(255,255,255,0.9)",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>Cargando tracking…</div>
+          <div style={{ marginTop: 6, fontSize: 13, opacity: 0.75 }}>
+            Preparando panel
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <TrackingClientInner {...props} />;
+}
+
+function TrackingClientInner({
   orders,
   selectedOrder,
   timeline,
@@ -242,8 +281,7 @@ export default function TrackingClient({
       {/* LISTA DE PEDIDOS + HISTORIAL EMBEBIDO */}
       <Stack spacing={2}>
         {pedidosPaginados.map((order) => {
-          const isClosed =
-            order.estado === "COMPLETO" || order.estado === "PARCIAL";
+          const isClosed = order.estado === "COMPLETO" || order.estado === "PARCIAL";
           const isSelected = selectedOrder && selectedOrder.id === order.id;
 
           return (
@@ -252,9 +290,7 @@ export default function TrackingClient({
                 variant="outlined"
                 sx={{
                   borderColor: isClosed ? "success.light" : "grey.300",
-                  backgroundColor: isClosed
-                    ? "success.50"
-                    : "background.paper",
+                  backgroundColor: isClosed ? "success.50" : "background.paper",
                 }}
               >
                 <CardContent
@@ -281,16 +317,13 @@ export default function TrackingClient({
                         {isSelected ? "Ocultar historial" : "Ver historial"}
                       </Button>
 
-                      <Typography variant="body2">
-                        Pedido {order.codigo}
-                      </Typography>
+                      <Typography variant="body2">Pedido {order.codigo}</Typography>
                       <Typography variant="body2">
                         • Proveedor: {order.proveedor_nombre}
                       </Typography>
+
                       {order.doc_ref && (
-                        <Typography variant="body2">
-                          • Doc: {order.doc_ref}
-                        </Typography>
+                        <Typography variant="body2">• Doc: {order.doc_ref}</Typography>
                       )}
 
                       <UltimoEventoChip
@@ -304,9 +337,7 @@ export default function TrackingClient({
 
                   {!isClosed && (
                     <Stack direction="row" spacing={1}>
-                      <Link
-                        href={`/dynedu/tracking?pedidoId=${order.id}#comentarios`}
-                      >
+                      <Link href={`/dynedu/tracking?pedidoId=${order.id}#comentarios`}>
                         <Button size="small" variant="contained">
                           Comentar
                         </Button>
@@ -315,11 +346,7 @@ export default function TrackingClient({
                       <Link
                         href={`/dynedu/tracking?pedidoId=${order.id}&realId=${order.id}#real`}
                       >
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="success"
-                        >
+                        <Button size="small" variant="contained" color="success">
                           Pedido real
                         </Button>
                       </Link>
@@ -353,8 +380,7 @@ export default function TrackingClient({
                           <Typography variant="subtitle1">
                             Pedido {selectedOrder!.codigo} • Proveedor:{" "}
                             {selectedOrder!.proveedor_nombre}
-                            {selectedOrder!.doc_ref &&
-                              ` • Doc: ${selectedOrder!.doc_ref}`}
+                            {selectedOrder!.doc_ref && ` • Doc: ${selectedOrder!.doc_ref}`}
                           </Typography>
 
                           <UltimoEventoChip
@@ -362,9 +388,7 @@ export default function TrackingClient({
                             fecha={selectedOrder!.ultimo_evento_fecha}
                           />
 
-                          <PedidoStatusChip
-                            estado={selectedOrder!.estado}
-                          />
+                          <PedidoStatusChip estado={selectedOrder!.estado} />
                         </Stack>
                       </Stack>
 
@@ -379,9 +403,7 @@ export default function TrackingClient({
                         <TableBody>
                           {timeline.map((ev) => (
                             <TableRow key={ev.id}>
-                              <TableCell>
-                                {formatDateTime(ev.created_at)}
-                              </TableCell>
+                              <TableCell>{formatDateTime(ev.created_at)}</TableCell>
                               <TableCell>
                                 <Chip size="small" label={ev.tipo_evento} />
                               </TableCell>
@@ -393,9 +415,7 @@ export default function TrackingClient({
 
                           {timeline.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={3}>
-                                Sin eventos aún.
-                              </TableCell>
+                              <TableCell colSpan={3}>Sin eventos aún.</TableCell>
                             </TableRow>
                           )}
                         </TableBody>
@@ -404,19 +424,17 @@ export default function TrackingClient({
                   </Card>
 
                   {/* Comentario inline */}
-                  {!(selectedOrder!.estado === "COMPLETO" ||
-                    selectedOrder!.estado === "PARCIAL") && (
+                  {!(
+                    selectedOrder!.estado === "COMPLETO" ||
+                    selectedOrder!.estado === "PARCIAL"
+                  ) && (
                     <Box component="section" id="comentarios" mt={2}>
                       <Typography variant="subtitle2" mb={1}>
                         Agregar comentario
                       </Typography>
 
                       <form action={addOrderCommentAction}>
-                        <input
-                          type="hidden"
-                          name="pedidoId"
-                          value={selectedOrder!.id}
-                        />
+                        <input type="hidden" name="pedidoId" value={selectedOrder!.id} />
                         <TextField
                           name="detalle"
                           label="Comentario"
@@ -424,15 +442,9 @@ export default function TrackingClient({
                           multiline
                           minRows={2}
                           value={commentText}
-                          onChange={(e) =>
-                            setCommentText(e.target.value)
-                          }
+                          onChange={(e) => setCommentText(e.target.value)}
                         />
-                        <Box
-                          mt={1}
-                          display="flex"
-                          justifyContent="flex-end"
-                        >
+                        <Box mt={1} display="flex" justifyContent="flex-end">
                           <Button
                             type="submit"
                             variant="contained"
@@ -451,11 +463,7 @@ export default function TrackingClient({
         })}
 
         {pedidosFiltrados.length === 0 && (
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mt: 1 }}
-          >
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             No se encontraron pedidos para la búsqueda.
           </Typography>
         )}
@@ -478,9 +486,7 @@ export default function TrackingClient({
             size="small"
             variant="outlined"
             disabled={pedidosPage === 0}
-            onClick={() =>
-              setPedidosPage((prev) => Math.max(0, prev - 1))
-            }
+            onClick={() => setPedidosPage((prev) => Math.max(0, prev - 1))}
           >
             Anterior
           </Button>
@@ -490,9 +496,7 @@ export default function TrackingClient({
             variant="outlined"
             disabled={pedidosPage + 1 >= totalPages}
             onClick={() =>
-              setPedidosPage((prev) =>
-                prev + 1 < totalPages ? prev + 1 : prev
-              )
+              setPedidosPage((prev) => (prev + 1 < totalPages ? prev + 1 : prev))
             }
           >
             Siguiente
@@ -507,14 +511,12 @@ export default function TrackingClient({
           {pedidoRealDetalle && (
             <>
               <Typography variant="subtitle2" gutterBottom>
-                Código:{" "}
-                <strong>{pedidoRealDetalle.pedido.codigo}</strong>
+                Código: <strong>{pedidoRealDetalle.pedido.codigo}</strong>
               </Typography>
+
               <Typography variant="body2" gutterBottom>
                 Proveedor:{" "}
-                <strong>
-                  {pedidoRealDetalle.pedido.proveedor_nombre}
-                </strong>
+                <strong>{pedidoRealDetalle.pedido.proveedor_nombre}</strong>
               </Typography>
 
               <Box component="section" id="real" mt={2}>
@@ -535,22 +537,14 @@ export default function TrackingClient({
                   </TableHead>
                   <TableBody>
                     {realRows.map((row) => {
-                      const faltante = Math.max(
-                        row.solicitada - row.recibida,
-                        0
-                      );
-                      const excedente = Math.max(
-                        row.recibida - row.solicitada,
-                        0
-                      );
+                      const faltante = Math.max(row.solicitada - row.recibida, 0);
+                      const excedente = Math.max(row.recibida - row.solicitada, 0);
 
                       return (
                         <TableRow key={row.itemId}>
                           <TableCell>{row.codigo}</TableCell>
                           <TableCell>{row.descripcion}</TableCell>
-                          <TableCell align="right">
-                            {row.solicitada}
-                          </TableCell>
+                          <TableCell align="right">{row.solicitada}</TableCell>
                           <TableCell align="right">
                             <TextField
                               type="number"
@@ -559,25 +553,17 @@ export default function TrackingClient({
                               inputProps={{ min: 0 }}
                               value={row.recibida}
                               onChange={(e) => {
-                                const value = Number(
-                                  e.target.value || 0
-                                );
+                                const value = Number(e.target.value || 0);
                                 setRealRows((prev) =>
                                   prev.map((r) =>
-                                    r.itemId === row.itemId
-                                      ? { ...r, recibida: value }
-                                      : r
+                                    r.itemId === row.itemId ? { ...r, recibida: value } : r
                                   )
                                 );
                               }}
                             />
                           </TableCell>
-                          <TableCell align="right">
-                            {faltante}
-                          </TableCell>
-                          <TableCell align="right">
-                            {excedente}
-                          </TableCell>
+                          <TableCell align="right">{faltante}</TableCell>
+                          <TableCell align="right">{excedente}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -586,26 +572,18 @@ export default function TrackingClient({
 
                 <Box mt={2}>
                   <Typography variant="body2">
-                    Total solicitada: {resumenReal.totalSolicitada} · Total
-                    recibida: {resumenReal.totalRecibida} · Faltante:{" "}
-                    {resumenReal.totalFaltante} · Excedente:{" "}
-                    {resumenReal.totalExcedente}
+                    Total solicitada: {resumenReal.totalSolicitada} · Total recibida:{" "}
+                    {resumenReal.totalRecibida} · Faltante: {resumenReal.totalFaltante} ·
+                    Excedente: {resumenReal.totalExcedente}
                   </Typography>
                 </Box>
 
-                <Box
-                  mt={2}
-                  display="flex"
-                  alignItems="center"
-                  gap={1}
-                >
+                <Box mt={2} display="flex" alignItems="center" gap={1}>
                   <Chip
                     size="small"
                     color={finalizar ? "success" : "default"}
                     label={
-                      finalizar
-                        ? "Se finalizará el pedido"
-                        : "Se mantendrá abierto"
+                      finalizar ? "Se finalizará el pedido" : "Se mantendrá abierto"
                     }
                   />
                 </Box>
@@ -613,11 +591,10 @@ export default function TrackingClient({
             </>
           )}
         </DialogContent>
+
         <DialogActions>
           {pedidoRealDetalle && (
-            <Link
-              href={`/dynedu/tracking?pedidoId=${pedidoRealDetalle.pedido.id}#historial`}
-            >
+            <Link href={`/dynedu/tracking?pedidoId=${pedidoRealDetalle.pedido.id}#historial`}>
               <Button variant="outlined">Cancelar</Button>
             </Link>
           )}

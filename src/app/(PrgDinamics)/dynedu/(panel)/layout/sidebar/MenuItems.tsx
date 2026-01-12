@@ -14,176 +14,151 @@ import {
   IconPlugConnected,
   IconAdjustmentsHorizontal,
   IconSchool,
-  IconActivity
+  IconActivity,
 } from "@tabler/icons-react";
 import { uniqueId } from "lodash";
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 
 const Menuitems = [
-  // ================
-  // GENERAL
-  // ================
-  {
-    navlabel: true,
-    subheader: "GENERAL",
-  },
+  { navlabel: true, subheader: "GENERAL" },
   {
     id: uniqueId(),
     title: "Resumen",
     icon: IconLayoutDashboard,
-    href: "/dynedu", // usamos el dashboard de colegio como overview
+    href: "/dynedu",
+    permissionKey: "canViewDashboard",
   },
 
-  // ================
-  // CATÁLOGO
-  // ================
-  {
-    navlabel: true,
-    subheader: "CATÁLOGO",
-  },
+  { navlabel: true, subheader: "CATÁLOGO" },
   {
     id: uniqueId(),
     title: "Productos",
     icon: IconPackage,
     href: "/dynedu/productos",
+    permissionKey: "canViewProducts",
   },
   {
     id: uniqueId(),
     title: "Packs",
     icon: IconBox,
     href: "/dynedu/packs",
+    permissionKey: "canViewPacks",
   },
-   {
+  {
     id: uniqueId(),
     title: "Catalogo De Precios",
     icon: AttachMoneyIcon,
     href: "/dynedu/precios",
+    permissionKey: "canViewPriceCatalog",
   },
   {
     id: uniqueId(),
     title: "Proveedores",
     icon: IconBuilding,
     href: "/dynedu/proveedores",
+    permissionKey: "canViewSuppliers",
   },
-   {
+  {
     id: uniqueId(),
     title: "Actividad",
     icon: IconActivity,
     href: "/dynedu/actividad",
+    permissionKey: "canViewActivity",
   },
 
-  // ================
-  // INVENTARIO
-  // ================
-  {
-    navlabel: true,
-    subheader: "INVENTARIO",
-  },
+  { navlabel: true, subheader: "INVENTARIO" },
   {
     id: uniqueId(),
     title: "Stock",
     icon: IconStack2,
     href: "/dynedu/inventario/stock",
+    permissionKey: "canViewStock",
   },
   {
     id: uniqueId(),
     title: "Movimientos",
     icon: IconArrowsLeftRight,
     href: "/dynedu/inventario/movimientos",
+    permissionKey: "canViewInventoryMovements",
   },
 
-  // ================
-  // OPERACIONES
-  // ================
-  {
-    navlabel: true,
-    subheader: "OPERACIONES",
-  },
+  { navlabel: true, subheader: "OPERACIONES" },
   {
     id: uniqueId(),
     title: "Pedidos",
     icon: IconClipboardText,
     href: "/dynedu/pedidos",
+    permissionKey: "canViewOrders",
   },
   {
     id: uniqueId(),
     title: "Consignaciones",
     icon: IconTruck,
     href: "/dynedu/consignaciones",
+    permissionKey: "canViewConsignations",
   },
   {
     id: uniqueId(),
     title: "Tracking",
     icon: IconClipboardText,
     href: "/dynedu/tracking",
+    permissionKey: "canViewTracking",
   },
 
-  // ================
-  // ALMACÉN
-  // ================
-  {
-    navlabel: true,
-    subheader: "ALMACÉN",
-  },
+  { navlabel: true, subheader: "ALMACÉN" },
   {
     id: uniqueId(),
     title: "Kardex",
     icon: IconBuildingWarehouse,
     href: "/almacen/kardex",
+    permissionKey: "canViewKardex",
   },
 
-  // ================
-  // REPORTES
-  // ================
-  {
-    navlabel: true,
-    subheader: "REPORTES",
-  },
+  { navlabel: true, subheader: "REPORTES" },
   {
     id: uniqueId(),
     title: "Ventas y cobranzas",
     icon: IconReportMoney,
     href: "/reportes/ventas",
+    permissionKey: "canViewSalesCollections",
   },
 
-  // ================
-  // CONFIGURACIÓN
-  // ================
-  {
-    navlabel: true,
-    subheader: "CONFIGURACIÓN",
-  },
+  { navlabel: true, subheader: "CONFIGURACIÓN" },
   {
     id: uniqueId(),
     title: "General",
     icon: IconSettings,
     href: "/dynedu/settings/general",
+    permissionKey: "canManageGeneralSettings",
   },
   {
     id: uniqueId(),
     title: "Usuarios y roles",
     icon: IconUsers,
     href: "/dynedu/settings/usuario-roles",
+    permissionAnyOf: ["canManageUsers", "canManageRoles"],
   },
   {
     id: uniqueId(),
     title: "Integraciones",
     icon: IconPlugConnected,
     href: "/dynedu/settings/integraciones",
+    permissionKey: "canManageIntegrations",
   },
   {
     id: uniqueId(),
     title: "Parámetros",
     icon: IconAdjustmentsHorizontal,
     href: "/dynedu/settings/parametros",
+    permissionKey: "canManageParametros",
   },
   {
-  id: "config-usuario-colegio",
-  title: "Registro Colegio",
-  href: "/dynedu/settings/usuario-colegio",
-  icon: IconSchool
-},
-
+    id: "config-usuario-colegio",
+    title: "Registro Colegio",
+    href: "/dynedu/settings/usuario-colegio",
+    icon: IconSchool,
+    permissionKey: "canManageSchoolRegistry",
+  },
 ];
 
 export default Menuitems;

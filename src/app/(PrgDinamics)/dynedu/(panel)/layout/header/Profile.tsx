@@ -1,95 +1,123 @@
-import React, { useState } from "react";
-import Link from "next/link";
+import React, { useMemo, useState } from "react";
 import {
   Avatar,
   Box,
   Menu,
   Button,
   IconButton,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
+  Typography,
+  Divider,
+  Stack,
 } from "@mui/material";
 
-import { IconListCheck, IconMail, IconUser } from "@tabler/icons-react";
+import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
+import { logoutDynedu } from "../../../DyneduLogin/actions";
 
-const Profile = () => {
-  const [anchorEl2, setAnchorEl2] = useState(null);
-  const handleClick2 = (event: any) => {
-    setAnchorEl2(event.currentTarget);
-  };
-  const handleClose2 = () => {
-    setAnchorEl2(null);
-  };
+type HeaderUser = {
+  fullName: string;
+  email: string;
+  username: string;
+};
+
+function getInitials(fullName: string, username: string, email: string) {
+  const base = fullName?.trim() || username?.trim() || email?.trim() || "U";
+  const parts = base.split(" ").filter(Boolean);
+
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return (base[0] ?? "U").toUpperCase();
+}
+
+const Profile = ({ user }: { user: HeaderUser | null }) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const initials = useMemo(() => {
+    if (!user) return "U";
+    return getInitials(user.fullName, user.username, user.email);
+  }, [user]);
+
+  const handleOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+  const handleClose = () => setAnchorEl(null);
+
+  const handleLogout = async () => {
+  try {
+    await logoutDynedu();
+  } finally {
+    window.location.href = "/dynedu";
+  }
+};
+
+
 
   return (
     <Box>
       <IconButton
         size="large"
-        aria-label="show 11 new notifications"
+        aria-label="profile"
         color="inherit"
-        aria-controls="msgs-menu"
+        aria-controls="profile-menu"
         aria-haspopup="true"
+        onClick={handleOpen}
         sx={{
-          ...(typeof anchorEl2 === "object" && {
-            color: "primary.main",
-          }),
+          ...(anchorEl && { color: "primary.main" }),
         }}
-        onClick={handleClick2}
       >
         <Avatar
-          src="/images/profile/user-1.jpg"
-          alt="image"
           sx={{
             width: 35,
             height: 35,
+            fontWeight: 800,
+            fontSize: 14,
           }}
-        />
+        >
+          {initials}
+        </Avatar>
       </IconButton>
-      {/* ------------------------------------------- */}
-      {/* Message Dropdown */}
-      {/* ------------------------------------------- */}
+
       <Menu
-        id="msgs-menu"
-        anchorEl={anchorEl2}
+        id="profile-menu"
+        anchorEl={anchorEl}
         keepMounted
-        open={Boolean(anchorEl2)}
-        onClose={handleClose2}
+        open={Boolean(anchorEl)}
+        onClose={handleClose}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         sx={{
           "& .MuiMenu-paper": {
-            width: "200px",
+            width: 280,
+            borderRadius: 2,
           },
         }}
       >
-        <MenuItem>
-          <ListItemIcon>
-            <IconUser width={20} />
-          </ListItemIcon>
-          <ListItemText>My Profile</ListItemText>
-        </MenuItem>
-        <MenuItem>
-          <ListItemIcon>
-            <IconMail width={20} />
-          </ListItemIcon>
-          <ListItemText>My Account</ListItemText>
-        </MenuItem>
-        <MenuItem>
-          <ListItemIcon>
-            <IconListCheck width={20} />
-          </ListItemIcon>
-          <ListItemText>My Tasks</ListItemText>
-        </MenuItem>
-        <Box mt={1} py={1} px={2}>
+        <Box px={2} pt={2} pb={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+              {user?.fullName?.trim() || user?.username?.trim() || "Usuario"}
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary">
+              {user?.email || "—"}
+            </Typography>
+
+            {user?.username ? (
+              <Typography variant="caption" color="text.secondary">
+                @{user.username}
+              </Typography>
+            ) : null}
+          </Stack>
+        </Box>
+
+        <Divider />
+
+        <Box py={1} px={2}>
           <Button
-            href="/authentication/login"
+            onClick={handleLogout}
             variant="outlined"
             color="primary"
-            component={Link}
             fullWidth
           >
-            Logout
+            Cerrar sesión
           </Button>
         </Box>
       </Menu>

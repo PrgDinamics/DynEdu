@@ -1,9 +1,5 @@
-"use client";
-
-import { baselightTheme } from "@/utils/theme/DefaultColors";
-import { ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
 import "./global.css";
+import ThemeRegistry from "./ThemeRegistry";
 
 export default function RootLayout({
   children,
@@ -13,18 +9,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* Título del tab */}
         <title>Dynamic Education</title>
-
-        {/* Opción 1: si pusiste el archivo en public/de-logo-icon.ico */}
         <link rel="icon" href="/favicon.ico" />
-
       </head>
       <body>
-        <ThemeProvider theme={baselightTheme}>
-          <CssBaseline />
-          {children}
-        </ThemeProvider>
+        <ThemeRegistry>{children}</ThemeRegistry>
       </body>
     </html>
   );

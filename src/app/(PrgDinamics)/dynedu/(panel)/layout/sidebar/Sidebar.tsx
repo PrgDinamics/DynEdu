@@ -1,16 +1,19 @@
 import { useMediaQuery, Box, Drawer } from "@mui/material";
 import SidebarItems from "./SidebarItems";
+import type { PermissionMap } from "../../PanelShell";
 
 interface ItemType {
   isMobileSidebarOpen: boolean;
-  onSidebarClose: (event: React.MouseEvent<HTMLElement>) => void;
+  onSidebarClose: (event?: any) => void;
   isSidebarOpen: boolean;
+  permissions: PermissionMap | null;
 }
 
 const MSidebar = ({
   isMobileSidebarOpen,
   onSidebarClose,
   isSidebarOpen,
+  permissions,
 }: ItemType) => {
   const lgUp = useMediaQuery((theme: any) => theme.breakpoints.up("lg"));
   const sidebarWidth = "270px";
@@ -47,13 +50,9 @@ const MSidebar = ({
             },
           }}
         >
-          <Box
-            sx={{
-              height: "100%",
-            }}
-          >
+          <Box sx={{ height: "100%" }}>
             <Box>
-              <SidebarItems />
+              <SidebarItems permissions={permissions} />
             </Box>
           </Box>
         </Drawer>
@@ -77,7 +76,7 @@ const MSidebar = ({
       }}
     >
       <Box>
-        <SidebarItems />
+        <SidebarItems permissions={permissions} />
       </Box>
     </Drawer>
   );

@@ -5,6 +5,8 @@ import React, { useState } from "react";
 import Header from "./layout/header/Header";
 import Sidebar from "./layout/sidebar/Sidebar";
 
+export type PermissionMap = Record<string, boolean>;
+
 const MainWrapper = styled("div")(() => ({
   display: "flex",
   minHeight: "100vh",
@@ -20,13 +22,20 @@ const PageWrapper = styled("div")(() => ({
   backgroundColor: "transparent",
 }));
 
-export default function PanelShell({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+export default function PanelShell({
+  children,
+  permissions,
+}: {
+  children: React.ReactNode;
+  permissions: PermissionMap | null;
+}) {
+  const [isSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
     <MainWrapper className="mainwrapper">
       <Sidebar
+        permissions={permissions}
         isSidebarOpen={isSidebarOpen}
         isMobileSidebarOpen={isMobileSidebarOpen}
         onSidebarClose={() => setMobileSidebarOpen(false)}

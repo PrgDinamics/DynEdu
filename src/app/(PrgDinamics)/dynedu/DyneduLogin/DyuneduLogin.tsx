@@ -2,9 +2,11 @@
 
 import "./dyneduLogin.css";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, LogIn, MessageCircle, ArrowRight } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, LogIn, User, MessageCircle } from "lucide-react";
+
+import { loginWithUsername } from "./actions";
 
 const LOGO_SRC = "/images/logos/de-logo-white.png";
 const DEFAULT_WHATSAPP = "51999999999";
@@ -12,40 +14,35 @@ const DEFAULT_WHATSAPP = "51999999999";
 export default function DyneduLogin() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const whatsappNumber =
-    process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || DEFAULT_WHATSAPP;
+  const whatsappNumber = useMemo(() => DEFAULT_WHATSAPP, []);
 
   const whatsappHref = useMemo(() => {
     const text = encodeURIComponent(
-      `Hola, necesito acceso a la Intranet DynEdu.\n\nCorreo: ${email || "(aún no ingresado)"}\nMotivo: Solicitar/recuperar acceso.`
+      `Hola, necesito acceso a la Intranet DynEdu.\n\nUsername: ${username || "(aún no ingresado)"}\nMotivo: Solicitar/recuperar acceso.`
     );
     return `https://wa.me/${whatsappNumber}?text=${text}`;
-  }, [whatsappNumber, email]);
+  }, [whatsappNumber, username]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!email.trim()) return setError("Ingresa tu correo institucional.");
+    if (!username.trim()) return setError("Ingresa tu username.");
     if (!password.trim()) return setError("Ingresa tu contraseña.");
 
     setLoading(true);
     try {
-      /**
-       * ✅ Aquí conectas tu login real (Supabase Auth / API).
-       * Ejemplo:
-       *  await signInWithPassword({ email, password })
-       *  router.push("/dynedu/actividad")
-       */
-      await new Promise((r) => setTimeout(r, 450)); // mock visual
-
-      // Ajusta el destino real del panel:
+      const res = await loginWithUsername({ username, password });
+      if (res.ok === false) {
+      setError(res.error);
+      return;
+}
       router.push("/dynedu/actividad");
     } catch {
       setError("Credenciales inválidas o no tienes acceso.");
@@ -61,48 +58,48 @@ export default function DyneduLogin() {
 
       <div className="dyCard">
         <div className="dyCardInner">
-          <div className="dyTop">
-            <div className="dyBrand">
-              <Image
-                src={LOGO_SRC}
-                alt="Dynamic Education"
-                width={220}
-                height={90}
-                priority
-                className="dyLogo"
-              />
-            </div>
-
-            <div className="dyHeaderText">
-              <h1 className="dyTitle">Intranet DynEdu</h1>
-              <p className="dySubtitle">Accede al panel de campaña académica</p>
-            </div>
+          <div className="dyBrand">
+            <Image
+              src={LOGO_SRC}
+              alt="DynEdu"
+              width={88}
+              height={88}
+              priority
+              className="dyLogo"
+            />
           </div>
+
+          <h1 className="dyTitle">Intranet DynEdu</h1>
+          <p className="dySubtitle">
+            Ingresa tu <b>username</b> y tu <b>contraseña</b> para acceder al panel.
+          </p>
 
           <form onSubmit={handleSubmit} className="dyForm">
             <div className="dyField">
-              <label className="dyLabel">Correo institucional *</label>
+              <label className="dyLabel">Usuario</label>
               <div className="dyInputWrap">
-                <span className="dyIcon">
-                  <Mail size={18} />
+                <span className="dyIcon" aria-hidden="true">
+                  <User size={18} />
                 </span>
+
                 <input
                   className="dyInput"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@colegio.com"
-                  type="email"
-                  autoComplete="email"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username"
+                  type="text"
+                  autoComplete="username"
                 />
               </div>
             </div>
 
             <div className="dyField">
-              <label className="dyLabel">Contraseña *</label>
+              <label className="dyLabel">Contraseña</label>
               <div className="dyInputWrap">
-                <span className="dyIcon">
+                <span className="dyIcon" aria-hidden="true">
                   <Lock size={18} />
                 </span>
+
                 <input
                   className="dyInput"
                   value={password}
@@ -111,6 +108,7 @@ export default function DyneduLogin() {
                   type={showPass ? "text" : "password"}
                   autoComplete="current-password"
                 />
+
                 <button
                   type="button"
                   className="dyEye"
@@ -125,22 +123,19 @@ export default function DyneduLogin() {
             {error && <div className="dyError">{error}</div>}
 
             <button className="dyPrimary" type="submit" disabled={loading}>
-              <span className="dyPrimaryIcon">
+              <span className="dyPrimaryIcon" aria-hidden="true">
                 <LogIn size={18} />
               </span>
               <span>{loading ? "Validando..." : "Ingresar"}</span>
-              <span className="dyPrimaryArrow">
+              <span className="dyPrimaryArrow" aria-hidden="true">
                 <ArrowRight size={18} />
               </span>
             </button>
 
-            <div className="dyRow">
-              <span className="dyRowText">¿No tienes acceso?</span>
-              <a className="dyLinkBtn" href={whatsappHref} target="_blank" rel="noreferrer">
-                <MessageCircle size={16} />
-                Solicitar acceso
-              </a>
-            </div>
+            <a className="dySecondary" href={whatsappHref} target="_blank" rel="noreferrer">
+              <MessageCircle size={18} />
+              Solicitar acceso
+            </a>
 
             <div className="dyFooterNote">PRG Dinamics • Dynamic Education</div>
           </form>

@@ -2,16 +2,20 @@
 
 export type AppRoleKey = "superadmin" | "admin" | "operator";
 
+export type PermissionMap = Record<string, boolean>;
+
 export type AppRole = {
   id: number;
   key: AppRoleKey | string;
   name: string;
   description: string | null;
+  permissions?: PermissionMap;
   isDefault: boolean;
 };
 
 export type AppUser = {
   id: number;
+  username: string;
   fullName: string;
   email: string;
   roleId: number;
@@ -21,6 +25,7 @@ export type AppUser = {
 };
 
 export type CreateAppUserInput = {
+  username: string;
   fullName: string;
   email: string;
   roleId: number;
@@ -32,4 +37,14 @@ export type UpdateAppUserInput = {
   email: string;
   roleId: number;
   isActive: boolean;
+};
+
+export type CreateUserResult = {
+  user: AppUser;
+  generatedPassword: string;
+};
+
+export type ResetPasswordResult = {
+  userId: number;
+  generatedPassword: string;
 };
