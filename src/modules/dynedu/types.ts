@@ -29,6 +29,7 @@ export type Producto = BaseEntity & {
   isbn?: string | null;      // antes nro_serie
   edicion?: string | null;   // 1ra edición, etc.
   foto_url?: string | null;  // URL portada
+  is_public?: boolean;
 };
 
 export type ProductoCreateInput = {
@@ -44,6 +45,7 @@ export type ProductoCreateInput = {
   isbn?: string | null;
   edicion?: string | null;
   foto_url?: string | null;
+  is_public?: boolean;
 };
 
 export type ProductoUpdateInput = Partial<

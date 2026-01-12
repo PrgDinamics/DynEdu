@@ -31,14 +31,14 @@ export type StatusCount = { status: string; count: number };
 
 export type AlertLowStock = {
   productoId: number;
-  codigo: string;
+  internalId: string;
   descripcion: string;
   stockFisico: number;
 };
 
 export type AlertNoPrice = {
   productoId: number;
-  codigo: string;
+  internalId: string;
   descripcion: string;
 };
 
@@ -142,25 +142,30 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   }
 
   // 3) Consignaciones for month (optional tables: consignaciones/consignacion_items)
-  // Try common date columns.
+  // DB alignment: uses fecha_salida (open/start) and fecha_cierre (closed).
   const consignaciones = await trySelect<any[]>(
-    async () =>
-      supabaseAdmin
+    async () => {
+      const base = supabaseAdmin
         .from("consignaciones")
-        .select("id, colegio_id, estado, fecha_registro, fecha_cierre, created_at, updated_at")
+        .select("id, colegio_id, estado, fecha_salida, fecha_cierre, created_at, updated_at")
         .in("estado", statuses)
-        .gte("fecha_registro", monthStartIso)
-        .order("id", { ascending: false }),
+        .order("id", { ascending: false });
+
+      // If we're only CERRADAS, filter by fecha_cierre. If we include ABIERTAS, filter by fecha_salida.
+      if (mode === "closed") return base.gte("fecha_cierre", monthStartIso);
+      return base.gte("fecha_salida", monthStartIso);
+    },
     []
   );
 
+  // Fallback in case some rows have null fecha_cierre/fecha_salida or the filter returns empty.
   const consignacionesFallback = consignaciones.length
     ? consignaciones
     : await trySelect<any[]>(
         async () =>
           supabaseAdmin
             .from("consignaciones")
-            .select("id, colegio_id, estado, fecha_registro, fecha_cierre, created_at, updated_at")
+            .select("id, colegio_id, estado, fecha_salida, fecha_cierre, created_at, updated_at")
             .in("estado", statuses)
             .gte("created_at", monthStartIso)
             .order("id", { ascending: false }),
@@ -213,25 +218,25 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   );
 
   const productos = productIdsInItems.length
-    ? await trySelect<{ id: number; codigo: string; descripcion: string }[]>(
+    ? await trySelect<{ id: number; internal_id: string; descripcion: string }[]>(
         async () =>
           supabaseAdmin
             .from("productos")
-            .select("id, codigo, descripcion")
+            .select("id, internal_id, descripcion")
             .in("id", productIdsInItems),
         []
       )
     : [];
 
   const productLabelById = new Map<number, string>();
-  const productCodigoById = new Map<number, string>();
+  const productInternalIdById = new Map<number, string>();
   const productDescById = new Map<number, string>();
   for (const p of productos) {
     const pid = Number((p as any).id);
-    const codigo = (p as any).codigo ?? "";
+    const internalId = (p as any).internal_id ?? "";
     const desc = (p as any).descripcion ?? "";
-    productLabelById.set(pid, desc || codigo || `Producto ${pid}`);
-    productCodigoById.set(pid, codigo);
+    productLabelById.set(pid, desc || internalId || `Producto ${pid}`);
+    productInternalIdById.set(pid, internalId);
     productDescById.set(pid, desc);
   }
 
@@ -283,9 +288,9 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
         salesByColegio.set(colegioId, (salesByColegio.get(colegioId) ?? 0) + consignacionAmount);
       }
 
-      // Daily series uses close date if available, else updated/created/fecha_registro.
+      // Daily series uses close date if available, else updated/created/fecha_salida.
       const rawDate =
-        (c as any).fecha_cierre || (c as any).fecha_registro || (c as any).updated_at || (c as any).created_at;
+        (c as any).fecha_cierre || (c as any).fecha_salida || (c as any).updated_at || (c as any).created_at;
       const dateKey = rawDate ? String(rawDate).slice(0, 10) : toISODateOnly(now);
 
       // Only keep last 30 days points (client draws 30d chart)
@@ -376,7 +381,7 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     async () =>
       supabaseAdmin
         .from("stock_actual")
-        .select("producto_id, stock_fisico, productos:productos(id, codigo, descripcion)")
+        .select("producto_id, stock_fisico, productos:productos(id, internal_id, descripcion)")
         .lte("stock_fisico", 5)
         .order("stock_fisico", { ascending: true })
         .limit(10),
@@ -388,7 +393,7 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
       const prod = Array.isArray(r.productos) ? r.productos[0] : r.productos;
       return {
         productoId: Number(r.producto_id),
-        codigo: prod?.codigo ?? "",
+        internalId: prod?.internal_id ?? "",
         descripcion: prod?.descripcion ?? "",
         stockFisico: safeNumber(r.stock_fisico),
       };
@@ -398,8 +403,8 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   // No price list? then noPrice is unknown.
   const noPrice: AlertNoPrice[] = [];
   if (priceListId) {
-    const allProducts = await trySelect<{ id: number; codigo: string; descripcion: string }[]>(
-      async () => supabaseAdmin.from("productos").select("id, codigo, descripcion").limit(500),
+    const allProducts = await trySelect<{ id: number; internal_id: string; descripcion: string }[]>(
+      async () => supabaseAdmin.from("productos").select("id, internal_id, descripcion").limit(500),
       []
     );
 
@@ -409,7 +414,7 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
       if (priceByProduct.has(pid)) continue;
       noPrice.push({
         productoId: pid,
-        codigo: (p as any).codigo ?? "",
+        internalId: (p as any).internal_id ?? "",
         descripcion: (p as any).descripcion ?? "",
       });
       if (noPrice.length >= 10) break;

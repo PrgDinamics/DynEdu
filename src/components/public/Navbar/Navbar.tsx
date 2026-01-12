@@ -18,7 +18,7 @@ export default function Navbar() {
       { href: "/", label: "Inicio" },
       { href: "/nosotros", label: "Quiénes somos" },
       { href: "/libros", label: "Libros" },
-      { href: "colegios.dynamiceducationperu.com/", label: "Colegios" },
+      { href: "https://colegios.dynamiceducationperu.com", label: "Colegios" },
       { href: "/contacto", label: "Contacto" },
     ],
     []

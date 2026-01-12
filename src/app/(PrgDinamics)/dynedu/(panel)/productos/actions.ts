@@ -22,6 +22,7 @@ export async function fetchProductos(): Promise<Producto[]> {
       anio_publicacion,
       isbn,
       edicion,
+      is_public,
       foto_url,
       created_at,
       updated_at
@@ -72,6 +73,9 @@ export async function crearProducto(
         anio_publicacion: input.anio_publicacion ?? null,
         isbn: input.isbn ?? null,
         edicion: input.edicion ?? null,
+        // If your shared types don't include this yet, it will still work at runtime.
+        // Recommended: add `is_public?: boolean` to ProductoCreateInput in modules/dynedu/types.
+        is_public: (input as any).is_public ?? false,
         foto_url: input.foto_url ?? null,
       },
     ])
@@ -85,6 +89,7 @@ export async function crearProducto(
       anio_publicacion,
       isbn,
       edicion,
+      is_public,
       foto_url,
       created_at,
       updated_at
@@ -111,6 +116,7 @@ export async function actualizarProducto(
       anio_publicacion: input.anio_publicacion ?? null,
       isbn: input.isbn ?? null,
       edicion: input.edicion ?? null,
+      is_public: (input as any).is_public,
       foto_url: input.foto_url ?? null,
     })
     .eq("id", id)
@@ -124,6 +130,7 @@ export async function actualizarProducto(
       anio_publicacion,
       isbn,
       edicion,
+      is_public,
       foto_url,
       created_at,
       updated_at
@@ -141,6 +148,20 @@ export async function eliminarProducto(id: number): Promise<void> {
   const { error } = await supabaseAdmin
     .from("productos")
     .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+  revalidatePath("/dynedu/productos");
+}
+
+// 🔹 Toggle published (is_public)
+export async function setProductoPublicado(
+  id: number,
+  isPublic: boolean
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("productos")
+    .update({ is_public: isPublic })
     .eq("id", id);
 
   if (error) throw error;

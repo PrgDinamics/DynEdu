@@ -31,6 +31,7 @@ import {
   IconEdit,
   IconTrash,
   IconEye,
+  IconEyeOff,
   IconUpload,
 } from "@tabler/icons-react";
 
@@ -44,6 +45,7 @@ import {
   actualizarProducto,
   eliminarProducto,
   generarCodigoProducto,
+  setProductoPublicado,
 } from "./actions";
 
 type Props = {
@@ -65,6 +67,9 @@ export default function ProductsClient({ initialProductos }: Props) {
   const [autor, setAutor] = useState("");
   const [anioPublicacion, setAnioPublicacion] = useState<string>("");
   const [edicion, setEdicion] = useState("");
+
+  // publish flag (public catalog)
+  const [isPublic, setIsPublic] = useState<boolean>(false);
 
   // foto
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -123,6 +128,7 @@ export default function ProductsClient({ initialProductos }: Props) {
     setAutor("");
     setAnioPublicacion("");
     setEdicion("");
+    setIsPublic(false);
     setFotoFile(null);
     setFotoNombre("");
     setEditingId(null);
@@ -237,7 +243,7 @@ export default function ProductsClient({ initialProductos }: Props) {
         const payloadBase: Omit<
           ProductoCreateInput,
           "id" | "created_at" | "updated_at"
-        > = {
+        > & { is_public: boolean } = {
           internal_id: codigo,
           descripcion: descripcion.trim(),
           editorial: editorial.trim() || null,
@@ -247,6 +253,7 @@ export default function ProductsClient({ initialProductos }: Props) {
             ? Number(anioPublicacion)
             : (null as any),
           edicion: edicion.trim() || null,
+          is_public: isPublic,
           // foto_url la dejamos para cuando integremos Storage
         };
 
@@ -317,6 +324,7 @@ export default function ProductsClient({ initialProductos }: Props) {
       (p as any).anio_publicacion ? String((p as any).anio_publicacion) : ""
     );
     setEdicion((p as any).edicion ?? "");
+    setIsPublic(Boolean((p as any).is_public));
     setFotoFile(null);
     setFotoNombre("");
 
@@ -353,6 +361,25 @@ export default function ProductsClient({ initialProductos }: Props) {
   const handleClickVerDetalles = (p: Producto) => {
     setProductoDetalle(p);
     setOpenDetalle(true);
+  };
+
+  // -----------------------------
+  // Publish toggle (table)
+  // -----------------------------
+  const handleTogglePublicado = async (p: Producto) => {
+    const next = !Boolean((p as any).is_public);
+    try {
+      setLoading(true);
+      await setProductoPublicado(p.id, next);
+      setProductos((prev) =>
+        prev.map((x) => (x.id === p.id ? { ...(x as any), is_public: next } : x))
+      );
+    } catch (err) {
+      console.error("Error updating published flag", err);
+      alert("No se pudo actualizar el estado de publicación.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const cerrarDetalle = () => {
@@ -417,6 +444,33 @@ export default function ProductsClient({ initialProductos }: Props) {
                 onChange={(e) => setDescripcion(e.target.value)}
                 fullWidth
               />
+
+              {/* Public / hidden (affects website catalog) */}
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="flex-end"
+                sx={{ mt: -1 }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Mostrar en Web:
+                </Typography>
+                <Chip
+                  size="small"
+                  label={isPublic ? "PUBLISHED" : "HIDDEN"}
+                  color={isPublic ? "success" : "default"}
+                  variant={isPublic ? "filled" : "outlined"}
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setIsPublic((v) => !v)}
+                  disabled={loading}
+                >
+                  {isPublic ? "Hide" : "Publish"}
+                </Button>
+              </Stack>
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField
@@ -549,13 +603,14 @@ export default function ProductsClient({ initialProductos }: Props) {
                 <TableCell>ISBN</TableCell>
                 <TableCell>Autor</TableCell>
                 <TableCell>Año pub.</TableCell>
+                <TableCell align="center">Publicado</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {paginaProductos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={8} align="center">
                     No hay productos registrados.
                   </TableCell>
                 </TableRow>
@@ -569,6 +624,29 @@ export default function ProductsClient({ initialProductos }: Props) {
                     <TableCell>{(p as any).autor ?? "—"}</TableCell>
                     <TableCell>
                       {(p as any).anio_publicacion ?? "—"}
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleTogglePublicado(p)}
+                        disabled={loading}
+                        sx={{
+                          color: Boolean((p as any).is_public)
+                            ? "success.main"
+                            : "text.secondary",
+                        }}
+                        title={
+                          Boolean((p as any).is_public)
+                            ? "Publicado (click para ocultar)"
+                            : "Oculto (click para publicar)"
+                        }
+                      >
+                        {Boolean((p as any).is_public) ? (
+                          <IconEye size={18} />
+                        ) : (
+                          <IconEyeOff size={18} />
+                        )}
+                      </IconButton>
                     </TableCell>
                     <TableCell align="center">
                       <Stack

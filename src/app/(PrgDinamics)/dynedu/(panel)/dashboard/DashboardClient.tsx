@@ -282,7 +282,7 @@ export default function DashboardClient({ initialData }: Props) {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Código</TableCell>
+                      <TableCell>Internal ID</TableCell>
                       <TableCell>Producto</TableCell>
                       <TableCell align="right">Stock</TableCell>
                     </TableRow>
@@ -290,7 +290,7 @@ export default function DashboardClient({ initialData }: Props) {
                   <TableBody>
                     {data.alerts.lowStock.map((r) => (
                       <TableRow key={r.productoId}>
-                        <TableCell>{r.codigo || "—"}</TableCell>
+                        <TableCell>{r.internalId || "—"}</TableCell>
                         <TableCell>{r.descripcion || `Producto ${r.productoId}`}</TableCell>
                         <TableCell align="right">{formatNumber(r.stockFisico)}</TableCell>
                       </TableRow>
@@ -321,14 +321,14 @@ export default function DashboardClient({ initialData }: Props) {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Código</TableCell>
+                      <TableCell>Internal ID</TableCell>
                       <TableCell>Producto</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {data.alerts.noPrice.map((r) => (
                       <TableRow key={r.productoId}>
-                        <TableCell>{r.codigo || "—"}</TableCell>
+                        <TableCell>{r.internalId || "—"}</TableCell>
                         <TableCell>{r.descripcion || `Producto ${r.productoId}`}</TableCell>
                       </TableRow>
                     ))}
