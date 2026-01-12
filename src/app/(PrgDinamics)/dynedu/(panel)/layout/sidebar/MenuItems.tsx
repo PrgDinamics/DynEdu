@@ -25,8 +25,16 @@ const Menuitems = [
     id: uniqueId(),
     title: "Resumen",
     icon: IconLayoutDashboard,
-    href: "/dynedu",
+    href: "/dynedu/dashboard",
     permissionKey: "canViewDashboard",
+    
+  },
+   {
+    id: uniqueId(),
+    title: "Actividad",
+    icon: IconActivity,
+    href: "/dynedu/actividad",
+    permissionKey: "canViewActivity",
   },
 
   { navlabel: true, subheader: "CATÁLOGO" },
@@ -57,13 +65,6 @@ const Menuitems = [
     icon: IconBuilding,
     href: "/dynedu/proveedores",
     permissionKey: "canViewSuppliers",
-  },
-  {
-    id: uniqueId(),
-    title: "Actividad",
-    icon: IconActivity,
-    href: "/dynedu/actividad",
-    permissionKey: "canViewActivity",
   },
 
   { navlabel: true, subheader: "INVENTARIO" },

@@ -369,14 +369,14 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
           <Stack spacing={2}>
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
-                label="Username (no cambia)"
+                label="Usuario"
                 fullWidth
                 size="small"
                 value={createForm.username}
                 onChange={(e) => handleCreateChange("username", e.target.value)}
               />
               <TextField
-                label="Nombre completo"
+                label="Nombre y Apellidos"
                 fullWidth
                 size="small"
                 value={createForm.fullName}
