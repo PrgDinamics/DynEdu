@@ -25,7 +25,7 @@ import {
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
 
-import { createConsignacionSolicitudAction } from "@/app/(PrgDinamics)/dynedu/(panel)/consignaciones/actions";
+import { createPortalConsignacionSolicitudAction } from "./actions";
 
 import {
   CalendarDays,
@@ -242,7 +242,7 @@ const ConsignacionClient: React.FC<Props> = ({
         return;
       }
 
-      const result = await createConsignacionSolicitudAction({
+      const result = await createPortalConsignacionSolicitudAction({
         colegioId,
         fechaSalida,
         observaciones: observaciones || undefined,

@@ -4,6 +4,7 @@ import { Typography } from "@mui/material";
 import { getPortalColegio } from "../actions";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import ConsignacionClient from "./ConsignacionClient";
+import PortalLogoutButton from "../components/PortalLogoutButton";
 
 type ProductoBasic = {
   id: number;
@@ -150,6 +151,10 @@ export default async function Page() {
             <Typography className="portalConsign__school">
               Colegio: <b>{colegio.nombre || colegio.razon_social || colegio.ruc}</b>
             </Typography>
+          </div>
+
+          <div className="portalConsign__right">
+            <PortalLogoutButton />
           </div>
         </header>
 

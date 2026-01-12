@@ -116,7 +116,7 @@
 }
 
 .portalConsign .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(220, 217, 255, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
 }
 
 .portalConsign .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
