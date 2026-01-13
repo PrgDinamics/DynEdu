@@ -20,6 +20,7 @@ export default function Navbar() {
       { href: "/libros", label: "Libros" },
       { href: "https://colegios.dynamiceducationperu.com", label: "Colegios" },
       { href: "/contacto", label: "Contacto" },
+      { href: "https://reclamovirtual.pe/libros/31cbc750-fc7d-4a13-bf6a-09a314e81979/Canalvirtual", label: "Libro de Reclamaciones" },
     ],
     []
   );
