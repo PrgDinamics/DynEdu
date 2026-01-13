@@ -15,12 +15,21 @@ function safeString(value: unknown, max = 5000) {
   return value.trim().slice(0, max);
 }
 
+function parseEmailList(raw: string | undefined) {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .filter((x) => isEmail(x));
+}
+
 export async function POST(req: Request) {
   try {
-    const to = process.env.CONTACT_TO_EMAIL;
-    const from = process.env.CONTACT_FROM_EMAIL;
+    const toList = parseEmailList(process.env.CONTACT_TO_EMAIL);
+    const from = process.env.CONTACT_FROM_EMAIL?.trim();
 
-    if (!to || !from) {
+    if (!toList.length || !from) {
       return NextResponse.json(
         { error: "Missing CONTACT_TO_EMAIL or CONTACT_FROM_EMAIL" },
         { status: 500 }
@@ -50,7 +59,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
 
-    // 1) Email interno (a tu bandeja)
+    // 1) Email interno (a tu bandeja / equipo)
     const subjectAdmin = topic
       ? `DynEdu - New contact: ${topic}`
       : "DynEdu - New contact message";
@@ -73,8 +82,8 @@ export async function POST(req: Request) {
 
     await resend.emails.send({
       from,
-      to,
-      replyTo: email, // para que respondas directo al cliente
+      to: toList, // ✅ multiple recipients
+      replyTo: email, // reply goes to the person who wrote
       subject: subjectAdmin,
       text: adminText,
     });
@@ -103,7 +112,7 @@ export async function POST(req: Request) {
     await resend.emails.send({
       from,
       to: email,
-      replyTo: to, // si responde, te llega a ti
+      replyTo: toList[0], // ✅ reply goes to your main inbox (first email)
       subject: subjectUser,
       text: userText,
     });

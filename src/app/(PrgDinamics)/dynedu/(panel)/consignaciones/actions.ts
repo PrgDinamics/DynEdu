@@ -141,7 +141,7 @@ export async function createConsignacionAction(
           codigo,
           colegio_id: colegioId,
           fecha_salida: fechaSalidaValue,
-          estado: "ABIERTA",
+          estado: "PENDIENTE",
           observaciones: observaciones ?? null,
           admin_comentario: null,
           fecha_entrega: null,
@@ -487,15 +487,21 @@ export async function updateConsignacionAbiertaAction(
  * - Aplica stock salida usando cantidad_aprobada (fallback cantidad)
  */
 export async function approveConsignacionAction(
-  consignacionId: number
+  input: UpdateSolicitudInput
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!consignacionId) return { success: false, error: "ID requerido" };
+    const { consignacionId, fechaEntrega, comentarioAdmin, items } = input || ({} as any);
 
+    const id = Number(consignacionId);
+    if (!Number.isFinite(id) || id <= 0) {
+      return { success: false, error: "ID requerido" };
+    }
+
+    // 1) Validar estado actual
     const { data: consRow, error: consErr } = await supabaseAdmin
       .from("consignaciones")
       .select("id,estado")
-      .eq("id", consignacionId)
+      .eq("id", id)
       .limit(1)
       .maybeSingle();
 
@@ -505,20 +511,57 @@ export async function approveConsignacionAction(
     }
 
     if (!consRow) return { success: false, error: "Consignación no encontrada" };
-    if (consRow.estado !== "PENDIENTE")
+    if (consRow.estado !== "PENDIENTE") {
       return { success: false, error: "Solo se puede aprobar si está PENDIENTE" };
+    }
 
-    const { data: items, error: itemsErr } = await supabaseAdmin
+    // 2) Guardar header (fecha_entrega / admin_comentario) ANTES de aprobar
+    const fechaEntregaISO = fechaEntrega
+      ? new Date(`${fechaEntrega}T00:00:00.000Z`).toISOString()
+      : null;
+
+    const { error: headerErr } = await supabaseAdmin
+      .from("consignaciones")
+      .update({
+        fecha_entrega: fechaEntregaISO,
+        admin_comentario: comentarioAdmin ? comentarioAdmin : null,
+      })
+      .eq("id", id)
+      .eq("estado", "PENDIENTE");
+
+    if (headerErr) {
+      console.error("[approveConsignacionAction] update header error:", headerErr);
+      return { success: false, error: "No se pudo actualizar cabecera" };
+    }
+
+    // 3) Guardar cantidades aprobadas por item (cantidad_aprobada)
+    if (items?.length) {
+      for (const it of items) {
+        const { error: itErr } = await supabaseAdmin
+          .from("consignacion_items")
+          .update({ cantidad_aprobada: it.cantidadAprobada })
+          .eq("id", it.itemId)
+          .eq("consignacion_id", id);
+
+        if (itErr) {
+          console.error("[approveConsignacionAction] update item error:", itErr);
+          return { success: false, error: "No se pudieron actualizar items" };
+        }
+      }
+    }
+
+    // 4) Leer items ya actualizados para aplicar salida de stock (cantidad_aprobada fallback cantidad)
+    const { data: dbItems, error: itemsErr } = await supabaseAdmin
       .from("consignacion_items")
       .select("id,producto_id,cantidad,cantidad_aprobada")
-      .eq("consignacion_id", consignacionId);
+      .eq("consignacion_id", id);
 
     if (itemsErr) {
       console.error("[approveConsignacionAction] read items error:", itemsErr);
       return { success: false, error: "No se pudieron leer items" };
     }
 
-    const list = (items || []) as any[];
+    const list = (dbItems || []) as any[];
     if (!list.length) return { success: false, error: "Sin items" };
 
     const stockItems: ConsignacionStockItem[] = list.map((it) => {
@@ -537,14 +580,13 @@ export async function approveConsignacionAction(
       };
     });
 
-    // aplica salida de stock
     await adjustStockForConsignacion(stockItems, "salida", "consignacion-salida");
 
-    // cambia estado
+    // 5) Cambiar estado PENDIENTE -> ABIERTA
     const { error: updErr } = await supabaseAdmin
       .from("consignaciones")
       .update({ estado: "ABIERTA" })
-      .eq("id", consignacionId)
+      .eq("id", id)
       .eq("estado", "PENDIENTE");
 
     if (updErr) {
@@ -558,6 +600,7 @@ export async function approveConsignacionAction(
     return { success: false, error: "Error inesperado al aprobar" };
   }
 }
+
 
 /**
  * Denegar: PENDIENTE -> ANULADA (y guarda admin_comentario)

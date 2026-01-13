@@ -203,7 +203,7 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
 
     setToast(null);
     startTransition(async () => {
-      const res = await updateConsignacionSolicitudAction(payload as any);
+      const res = await updateConsignacionSolicitudAction(payload);
       if (!res?.success) {
         setToast({ type: "error", text: getActionError(res) || "No se pudieron guardar cambios." });
         return;
