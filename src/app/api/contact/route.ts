@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 
-export const runtime = "nodejs"; // importante en Vercel para librerías server
-export const dynamic = "force-dynamic"; // evita cache raro en route handlers
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -17,95 +10,63 @@ function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function safeString(value: unknown, max = 5000) {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, max);
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => null);
+    const to = process.env.CONTACT_TO_EMAIL;
+    const from = process.env.CONTACT_FROM_EMAIL;
 
+    if (!to || !from) {
+      return NextResponse.json(
+        { error: "Missing CONTACT_TO_EMAIL or CONTACT_FROM_EMAIL" },
+        { status: 500 }
+      );
+    }
+
+    const body = await req.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const {
-      name = "",
-      email = "",
-      phone = "",
-      school = "",
-      topic = "",
-      product = "",
-      message = "",
-      source = "public_site",
-      // anti-spam (si algún día lo agregas en frontend)
-      website = "",
-    } = body;
+    const name = safeString(body.name, 120);
+    const email = safeString(body.email, 180);
+    const phone = safeString(body.phone, 60);
+    const school = safeString(body.school, 180);
+    const topic = safeString(body.topic, 120);
+    const product = safeString(body.product, 180);
+    const message = safeString(body.message, 6000);
 
-    // Honeypot (si viene lleno, bot)
-    if (website && String(website).trim().length > 0) {
-      return NextResponse.json({ ok: true }, { status: 200 });
+    if (!name || !email || !message) {
+      return NextResponse.json(
+        { error: "Name, email and message are required" },
+        { status: 400 }
+      );
+    }
+    if (!isEmail(email)) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
 
-    if (!String(name).trim()) {
-      return NextResponse.json({ error: "Name required" }, { status: 400 });
-    }
-    if (!isEmail(String(email))) {
-      return NextResponse.json({ error: "Valid email required" }, { status: 400 });
-    }
-    if (!String(message).trim()) {
-      return NextResponse.json({ error: "Message required" }, { status: 400 });
-    }
+    // 1) Email interno (a tu bandeja)
+    const subjectAdmin = topic
+      ? `DynEdu - New contact: ${topic}`
+      : "DynEdu - New contact message";
 
-    const userAgent = req.headers.get("user-agent") || "";
-    // IP: Vercel suele mandar x-forwarded-for
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      "";
-
-    // 1) Guardar en Supabase
-    const { data: row, error: dbErr } = await supabase
-      .from("contact_messages")
-      .insert({
-        name,
-        email,
-        phone,
-        school,
-        topic,
-        product,
-        message,
-        source,
-        user_agent: userAgent,
-        ip,
-      })
-      .select("id, created_at")
-      .single();
-
-    if (dbErr) {
-      return NextResponse.json({ error: dbErr.message }, { status: 500 });
-    }
-
-    // 2) Enviar correo con Resend
-    const to = process.env.CONTACT_TO_EMAIL!;
-    const from = process.env.CONTACT_FROM_EMAIL || "onboarding@resend.dev";
-
-    const subject = `[PRG Dinamics] Nuevo contacto: ${name}${topic ? ` (${topic})` : ""}`;
-
-    const text = [
-      `Nuevo mensaje de contacto`,
-      `--------------------------------`,
-      `Nombre: ${name}`,
+    const adminText = [
+      "New contact message",
+      "------------------------------",
+      `Name: ${name}`,
       `Email: ${email}`,
-      phone ? `Teléfono: ${phone}` : "",
-      school ? `Colegio/Institución: ${school}` : "",
-      topic ? `Motivo: ${topic}` : "",
-      product ? `Producto: ${product}` : "",
-      `--------------------------------`,
-      `Mensaje:`,
-      `${message}`,
-      `--------------------------------`,
-      `Meta:`,
-      `ID: ${row.id}`,
-      `Fecha: ${row.created_at}`,
-      ip ? `IP: ${ip}` : "",
-      userAgent ? `User-Agent: ${userAgent}` : "",
+      phone ? `Phone: ${phone}` : null,
+      school ? `School: ${school}` : null,
+      topic ? `Topic: ${topic}` : null,
+      product ? `Product: ${product}` : null,
+      "",
+      "Message:",
+      message,
     ]
       .filter(Boolean)
       .join("\n");
@@ -113,12 +74,41 @@ export async function POST(req: Request) {
     await resend.emails.send({
       from,
       to,
-      replyTo: email,
-      subject,
-      text,
+      replyTo: email, // para que respondas directo al cliente
+      subject: subjectAdmin,
+      text: adminText,
     });
 
-    return NextResponse.json({ ok: true, id: row.id }, { status: 200 });
+    // 2) Confirmación al usuario
+    const subjectUser = "DynEdu - Hemos recibido tu solicitud ✅";
+
+    const userText = [
+      `Hola ${name},`,
+      "",
+      "¡Gracias por escribirnos! Hemos recibido tu solicitud y te responderemos a la brevedad.",
+      "",
+      topic ? `Motivo: ${topic}` : null,
+      product ? `Producto: ${product}` : null,
+      school ? `Colegio/Institución: ${school}` : null,
+      phone ? `Teléfono: ${phone}` : null,
+      "",
+      "Tu mensaje:",
+      message,
+      "",
+      "— DynEdu / PRG Dinamics",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await resend.emails.send({
+      from,
+      to: email,
+      replyTo: to, // si responde, te llega a ti
+      subject: subjectUser,
+      text: userText,
+    });
+
+    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "Unexpected error" },

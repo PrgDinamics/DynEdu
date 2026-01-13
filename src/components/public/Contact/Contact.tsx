@@ -49,6 +49,8 @@ export default function Contact() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (state === "sending") return;
+
     setErrorMsg("");
 
     if (!name.trim()) return setErrorMsg("Por favor ingresa tu nombre.");
@@ -69,16 +71,32 @@ export default function Contact() {
           topic,
           product,
           message,
+          // helpful context for DB/email
           source: "public_site",
+          productId: prefillId || null,
         }),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || "No se pudo enviar el mensaje.");
+        const msg =
+          (data && (data.error || data.message)) ||
+          "No se pudo enviar el mensaje. Intenta de nuevo.";
+        throw new Error(msg);
       }
 
       setState("success");
+
+      // optional: clear fields after success
+      setName("");
+      setEmail("");
+      setPhone("");
+      setSchool("");
+      setMessage("");
+      // keep topic/product if it was prefilled (optional)
+      // setTopic("campaign");
+      // setProduct("");
     } catch (err: any) {
       setState("error");
       setErrorMsg(err?.message || "Ocurrió un error al enviar. Intenta de nuevo.");
@@ -132,9 +150,7 @@ export default function Contact() {
             </div>
           </div>
 
-          <div className="contact-note">
-           
-          </div>
+          <div className="contact-note"></div>
         </div>
 
         <div className="contact-right card">
@@ -142,7 +158,12 @@ export default function Contact() {
             <div className="form-row">
               <div className="field">
                 <label>Nombre</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" />
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu nombre"
+                  autoComplete="name"
+                />
               </div>
 
               <div className="field">
@@ -151,7 +172,9 @@ export default function Contact() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@correo.com"
+                  type="email"
                   inputMode="email"
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -159,7 +182,12 @@ export default function Contact() {
             <div className="form-row">
               <div className="field">
                 <label>Teléfono</label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+51 ..." />
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+51 ..."
+                  autoComplete="tel"
+                />
               </div>
 
               <div className="field">
@@ -184,7 +212,11 @@ export default function Contact() {
 
               <div className="field">
                 <label>Producto (opcional)</label>
-                <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="Ej: Matemática 5to" />
+                <input
+                  value={product}
+                  onChange={(e) => setProduct(e.target.value)}
+                  placeholder="Ej: Matemática 5to"
+                />
               </div>
             </div>
 
@@ -203,12 +235,18 @@ export default function Contact() {
             <button className="submit" type="submit" disabled={state === "sending"}>
               <span className="submitInner">
                 <Send size={18} aria-hidden="true" />
-                {state === "sending" ? "Enviando..." : state === "success" ? "Enviado ✓" : "Enviar mensaje"}
+                {state === "sending"
+                  ? "Enviando..."
+                  : state === "success"
+                  ? "Enviado ✓"
+                  : "Enviar mensaje"}
               </span>
             </button>
 
             {state === "success" ? (
-              <div className="form-success">Listo. Recibimos tu mensaje y te responderemos a la brevedad.</div>
+              <div className="form-success">
+                Listo. Recibimos tu mensaje y te responderemos a la brevedad.
+              </div>
             ) : null}
           </form>
         </div>
