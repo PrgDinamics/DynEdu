@@ -11,8 +11,12 @@
 }
 
 .navbar.scrolled {
-  padding: 12px 0;
+  padding: 18px 0;
   background: rgba(29, 48, 75, 0.85);
+}
+
+.nav-spacer {
+  height: 74px;
 }
 
 .nav-container {
@@ -20,7 +24,6 @@
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 14px;
 }
@@ -31,13 +34,16 @@
   font-weight: 800;
   text-decoration: none;
   letter-spacing: 0.2px;
+  white-space: nowrap;
 }
 
-/* Desktop links */
 .nav-links {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 18px;
+  flex: 1;
+  min-width: 0;
 }
 
 .nav-link {
@@ -47,6 +53,7 @@
   font-weight: 600;
   transition: opacity 0.2s, transform 0.2s;
   position: relative;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -69,7 +76,77 @@
   background: rgba(255, 255, 255, 0.75);
 }
 
-/* Burger (mobile) */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.nav-auth {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #ff9800, #ffc107);
+  color: #111827;
+  text-decoration: none;
+  font-weight: 800;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.nav-auth:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.nav-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-weight: 800;
+  max-width: 340px;
+}
+
+.nav-user-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-logout-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.nav-logout-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
 .nav-burger {
   display: none;
   width: 44px;
@@ -80,12 +157,8 @@
   border-radius: 12px;
   cursor: pointer;
   padding: 0;
-
-  /* center icon */
-  display: none;
   align-items: center;
   justify-content: center;
-
   color: #fff;
 }
 
@@ -93,7 +166,7 @@
   opacity: 0.95;
 }
 
-/* Mobile radial layer */
+/* Mobile overlay */
 .nav-mobile {
   position: fixed;
   inset: 0;
@@ -101,7 +174,6 @@
   pointer-events: none;
 }
 
-/* Expansión radial tipo JCTP usando clip-path */
 .nav-mobile::before {
   content: "";
   position: absolute;
@@ -121,7 +193,6 @@
   clip-path: circle(150% at 92% 28px);
 }
 
-/* Backdrop clickable */
 .nav-backdrop {
   position: absolute;
   inset: 0;
@@ -130,7 +201,6 @@
   cursor: pointer;
 }
 
-/* Menu card */
 .nav-mobile-card {
   position: absolute;
   top: 86px;
@@ -138,7 +208,7 @@
   right: 16px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(84, 45, 160, 0.20);
+  background: rgba(84, 45, 160, 0.2);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
   padding: 14px;
   transform: translateY(-10px);
@@ -158,37 +228,9 @@
   padding: 6px 6px 12px;
 }
 
-/* ✅ Logo SOLO en popup */
-.nav-mobile-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.nav-mobile-logo {
-  width: 250px;
-  height: 128px;
-  object-fit: contain;
-
-  /* ✅ sin marco */
-  border: none;
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
-
-  /* opcional: que resalte suave */
-  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.30));
-}
-
-.nav-mobile-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-}
-
 .nav-mobile-title {
   color: #fff;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.2px;
 }
 
@@ -200,7 +242,6 @@
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
   cursor: pointer;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -220,9 +261,9 @@
   border-radius: 14px;
   text-decoration: none;
   color: #fff;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.10);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
@@ -236,9 +277,51 @@
   border-color: rgba(255, 255, 255, 0.18);
 }
 
-/* Responsive */
+.nav-mobile-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 8px 0 6px;
+  border-radius: 999px;
+}
+
+.nav-mobile-auth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #ff9800, #ffc107);
+  color: #111827;
+  text-decoration: none;
+  font-weight: 900;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.nav-mobile-user {
+  display: grid;
+  gap: 10px;
+}
+
+.nav-mobile-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
 @media (max-width: 900px) {
   .nav-links {
+    display: none;
+  }
+  .nav-actions {
     display: none;
   }
   .nav-burger {
@@ -246,12 +329,138 @@
   }
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .nav-mobile::before,
   .nav-mobile-card,
   .nav-link,
-  .nav-mobile-link {
+  .nav-mobile-link,
+  .nav-auth {
     transition: none !important;
+  }
+}
+
+/* Force navbar layout: logo left, links center, actions right, burger at far right */
+.nav-container {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Keep links/actions grouped and allow pushing burger to the edge */
+.nav-links {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Actions stay to the right (desktop) */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Burger always at far right */
+.nav-burger {
+  margin-left: auto;
+}
+
+/* ===== User dropdown (Perfil) ===== */
+.nav-user {
+  position: relative; /* clave: para que el dropdown se posicione debajo */
+}
+
+.nav-user-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;              /* queda alineado debajo del pill */
+  min-width: 240px;
+  border-radius: 16px;
+  padding: 10px;
+  z-index: 9999;
+
+  background: rgba(10, 10, 16, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+}
+
+.nav-user-menu::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 18px;
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  background: rgba(10, 10, 16, 0.88);
+  border-left: 1px solid rgba(255,255,255,0.12);
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.nav-user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 10px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 800;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.nav-user-menu-item:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.nav-user-menu-logout {
+  margin-top: 8px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 800;
+
+  background: rgba(255, 193, 7, 0.10);
+  border: 1px solid rgba(255, 193, 7, 0.22);
+}
+
+
+/* On mobile, usually hide links and keep burger right */
+@media (max-width: 900px) {
+  .nav-links {
+    display: none;
+  }
+
+  .nav-actions {
+    margin-left: auto;
+  }
+
+  .nav-burger {
+    margin-left: 10px;
+  }
+}
+/* Mobile: hide top-right auth button/pill, keep it only inside burger menu */
+@media (max-width: 900px) {
+  .nav-actions {
+    display: none !important;
+  }
+
+  .nav-burger {
+    margin-left: auto !important;
   }
 }

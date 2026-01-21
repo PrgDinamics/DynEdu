@@ -267,7 +267,7 @@ function TrackingClientInner({
 
         <TextField
           size="small"
-          label="Buscar pedido"
+          label="Buscar"
           placeholder="Código, proveedor, doc, estado..."
           value={pedidosSearch}
           onChange={(e) => {

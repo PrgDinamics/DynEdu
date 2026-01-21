@@ -1,15 +1,12 @@
-.hero {
-  width: 100%;
-  min-height: 100vh;
-  padding: clamp(110px, 12vh, 140px) 16px 64px;
-  color: #ffffff;
-  overflow: hidden;
+.heroScene {
+  /* UN SOLO BACKGROUND CONTINUO PARA HERO + PROMO */
   background: radial-gradient(circle at 20% 15%, #6a3bcc 0%, #1d304b 55%, #0b1220 100%);
   position: relative;
+  overflow: hidden;
 }
 
-/* sutil brillo/overlay para look más pro */
-.hero::before {
+/* overlay suave global (igual al hero) */
+.heroScene::before {
   content: "";
   position: absolute;
   inset: -2px;
@@ -17,7 +14,32 @@
     radial-gradient(circle at 70% 30%, rgba(136, 135, 232, 0.25), transparent 55%),
     radial-gradient(circle at 30% 70%, rgba(255, 255, 255, 0.08), transparent 55%);
   pointer-events: none;
+  z-index: 0;
 }
+
+/* asegura que el contenido esté sobre el overlay */
+.heroScene > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ✅ HERO: transparente para que herede el fondo del heroScene */
+.hero {
+  width: 100%;
+  min-height: 100vh;
+  padding: clamp(110px, 12vh, 140px) 16px 64px;
+  color: #ffffff;
+  overflow: hidden;
+  background: transparent; /* <-- CAMBIO CLAVE */
+  position: relative;
+}
+
+/* ✅ ya no necesitas el ::before del hero si el heroScene lo hace,
+   pero si lo dejas, se duplica el overlay. Recomendado: apagarlo */
+.hero::before {
+  content: none; /* <-- CAMBIO CLAVE para evitar doble overlay */
+}
+
 
 .hero-inner {
   position: relative;

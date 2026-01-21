@@ -11,7 +11,7 @@ export default function PublicLayout({ children }) {
     <html lang="es">
       <body>
         <Navbar />
-        {children}
+        <main className="public-main">{children}</main>
         <Footer />
       </body>
     </html>

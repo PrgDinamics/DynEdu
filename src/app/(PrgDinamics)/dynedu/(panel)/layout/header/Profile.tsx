@@ -10,8 +10,7 @@ import {
   Stack,
 } from "@mui/material";
 
-import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
-import { logoutDynedu } from "../../../DyneduLogin/actions";
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowserClient";
 
 type HeaderUser = {
   fullName: string;
@@ -37,18 +36,18 @@ const Profile = ({ user }: { user: HeaderUser | null }) => {
     return getInitials(user.fullName, user.username, user.email);
   }, [user]);
 
-  const handleOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+  const handleOpen = (event: React.MouseEvent<HTMLElement>) =>
+    setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
   const handleLogout = async () => {
-  try {
-    await logoutDynedu();
-  } finally {
-    window.location.href = "/dynedu";
-  }
-};
-
-
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } finally {
+      window.location.href = "/dynedu";
+    }
+  };
 
   return (
     <Box>
@@ -111,12 +110,7 @@ const Profile = ({ user }: { user: HeaderUser | null }) => {
         <Divider />
 
         <Box py={1} px={2}>
-          <Button
-            onClick={handleLogout}
-            variant="outlined"
-            color="primary"
-            fullWidth
-          >
+          <Button onClick={handleLogout} variant="outlined" color="primary" fullWidth>
             Cerrar sesión
           </Button>
         </Box>

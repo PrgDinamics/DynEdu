@@ -1,16 +1,24 @@
 *{
      font-family: 'Plus Jakarta Sans', Helvetica, Arial, sans-serif !important;
+     box-sizing: border-box;
+      margin: 0;
+      padding: 0;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+:root {
+  --navbar-height: 78px; /* aprox por padding 18px, ajustable */
 }
+
+
 
 html, body {
   overflow-x: hidden !important;  /* evita scroll horizontal */
   font-family: "Inter", sans-serif;
   background: #f5f6fa;
   color: #1d304b;
+}
+
+.public-main {
+  min-height: calc(100vh - var(--navbar-height));
+  background: transparent;
 }

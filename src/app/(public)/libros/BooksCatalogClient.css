@@ -175,16 +175,18 @@
 }
 
 .catalog-cover {
-  height: 190px;
+  height: 450px; /* más “larga” */
   background: rgba(84,45,160,0.06);
 }
 
 .catalog-cover img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: cover; /* mantiene fill sin deformar */
+  object-position: center; /* centrado */
   display: block;
 }
+
 
 .catalog-body {
   padding: 16px;
@@ -346,5 +348,191 @@
 
   .pager-pages {
     justify-content: center;
+  }
+}
+
+/* ========================= */
+/* Topbar estilo tienda (SBS vibe) */
+/* ========================= */
+.libros-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 12px 0;
+  margin-bottom: 16px;
+
+  /* vidrio suave */
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(10px);
+
+  border-bottom: 1px solid rgba(29,48,75,0.10);
+}
+
+.libros-topbar-inner {
+  width: 92%;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.libros-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  background: #fff;
+  border: 1px solid rgba(29,48,75,0.12);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 10px 18px rgba(0,0,0,0.06);
+}
+
+.libros-search-icon {
+  opacity: 0.65;
+  font-size: 16px;
+}
+
+.libros-search-input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  font-size: 13px;
+  padding: 4px 2px;
+  background: transparent;
+}
+
+.libros-cart-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 14px;
+
+  background: rgba(84,45,160,0.10);
+  border: 1px solid rgba(84,45,160,0.25);
+  color: #1d304b;
+  font-weight: 800;
+  text-decoration: none;
+
+  transition: 0.2s ease;
+}
+
+.libros-cart-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 22px rgba(0,0,0,0.10);
+}
+
+.libros-cart-badge {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #542da0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* Mobile */
+@media (max-width: 820px) {
+  .libros-topbar-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .libros-cart-btn {
+    justify-content: center;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* --- Header row con carrito --- */
+.catalog-headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.catalog-cartLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.catalog-cartIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.catalog-cartText {
+  font-weight: 700;
+}
+
+.catalog-cartBadge {
+  min-width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 8px;
+  background: #5f3dc4;
+  color: white;
+}
+
+/* --- Fix “Limpiar” para que no se vea más arriba --- */
+.catalog-filters {
+  align-items: end; /* clave */
+}
+
+.catalog-reset {
+  height: 46px; /* mismo alto visual que inputs */
+  margin-top: 22px; /* compensa label arriba de selects */
+}
+
+/* Responsive: el carrito baja y el reset se acomoda */
+@media (max-width: 900px) {
+  .catalog-headerRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .catalog-cartLink {
+    justify-content: space-between;
+  }
+
+  .catalog-reset {
+    margin-top: 0;
   }
 }

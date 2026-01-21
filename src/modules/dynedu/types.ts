@@ -18,6 +18,7 @@ export type BaseEntity = {
 export type Producto = BaseEntity & {
   /** Código humano: PRO0001, PRO0002, etc. */
   internal_id: string;
+  codigo_venta: string | null;
 
   descripcion: string;
 
@@ -35,6 +36,7 @@ export type Producto = BaseEntity & {
 export type ProductoCreateInput = {
   // El código humano lo generas tú: PRO0001, PRO0002...
   internal_id: string;
+  codigo_venta?: string | null;
 
   descripcion: string;
 

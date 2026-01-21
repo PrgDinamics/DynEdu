@@ -1,72 +1,158 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
+import {
+  LogIn,
+  LogOut,
+  UserRound,
+  Menu,
+  X,
+  ChevronRight,
+  User,
+} from "lucide-react";
 import "./Navbar.css";
 
-type NavItem = { href: string; label: string };
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowserClient";
+
+const NAV_LINKS = [
+  { href: "/", label: "Inicio" },
+  { href: "/nosotros", label: "Quiénes somos" },
+  { href: "/libros", label: "Libros" },
+  { href: "https://colegios.dynamiceducationperu.com", label: "Colegios" },
+  { href: "/contacto", label: "Contacto" },
+  { href: "/libro-de-reclamaciones", label: "Libro de Reclamaciones" },
+];
 
 export default function Navbar() {
-  const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
+  const pathname = usePathname() || "/";
 
-  const links: NavItem[] = useMemo(
-    () => [
-      { href: "/", label: "Inicio" },
-      { href: "/nosotros", label: "Quiénes somos" },
-      { href: "/libros", label: "Libros" },
-      { href: "https://colegios.dynamiceducationperu.com", label: "Colegios" },
-      { href: "/contacto", label: "Contacto" },
-      { href: "https://reclamovirtual.pe/libros/31cbc750-fc7d-4a13-bf6a-09a314e81979/Canalvirtual", label: "Libro de Reclamaciones" },
-    ],
-    []
-  );
+  // ✅ SAME client across app
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
+
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // ✅ dropdown perfil
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 50);
-    handler();
-    window.addEventListener("scroll", handler);
-    return () => window.removeEventListener("scroll", handler);
+    let alive = true;
+
+    const syncSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (!alive) return;
+
+        if (!error) {
+          setSession(data.session ?? null);
+          setSessionReady(true);
+          return;
+        }
+
+        const { data: u } = await supabase.auth.getUser();
+        if (!alive) return;
+
+        if (u?.user) {
+          setSession((prev) => prev ?? null);
+        } else {
+          setSession(null);
+        }
+
+        setSessionReady(true);
+      } catch {
+        if (!alive) return;
+        setSession(null);
+        setSessionReady(true);
+      }
+    };
+
+    syncSession();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s ?? null);
+      setSessionReady(true);
+    });
+
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 6);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!mobileOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") setMobileOpen(false);
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
-
-  useEffect(() => {
-    setOpen(false);
+    setMobileOpen(false);
+    setUserMenuOpen(false);
   }, [pathname]);
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname?.startsWith(href);
+  // ✅ click afuera cierra dropdown
+  useEffect(() => {
+    if (!userMenuOpen) return;
+
+    const onDown = (e: MouseEvent) => {
+      const el = userMenuRef.current;
+      if (!el) return;
+      if (e.target instanceof Node && !el.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [userMenuOpen]);
+
+  const user = session?.user;
+  const meta = (user?.user_metadata as any) || {};
+  const firstName: string | undefined = meta.first_name || meta.firstName || meta.nombres;
+  const email = user?.email || "";
+  const label = firstName ? firstName : email;
+
+  const next = pathname.startsWith("/auth") ? "/checkout" : pathname;
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const onLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setUserMenuOpen(false);
+  };
 
   return (
     <>
       <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
         <div className="nav-container">
-          {/* Desktop: SOLO texto */}
-          <Link href="/" className="logo" aria-label="PRG Dinamics home">
+          <Link href="/" className="logo">
             PRG Dinamics
           </Link>
 
-          {/* Desktop links */}
-          <div className="nav-links" aria-label="Primary navigation">
-            {links.map((l) => (
+          <div className="nav-links">
+            {NAV_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -77,42 +163,82 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Mobile toggle: icono lucide */}
+          <div className="nav-actions">
+            {!sessionReady ? (
+              <div style={{ width: 220, height: 36 }} />
+            ) : !session ? (
+              <Link className="nav-auth" href={`/auth/login?next=${encodeURIComponent(next)}`}>
+                <LogIn size={18} />
+                <span>Ingresar</span>
+              </Link>
+            ) : (
+              <div className="nav-user" ref={userMenuRef}>
+                  <button
+                    type="button"
+                    className="nav-user-pill"
+                    title={email}
+                    onClick={() => setUserMenuOpen((v) => !v)}
+                  >
+                    <UserRound size={18} />
+                    <span>Bienvenido, {label}</span>
+                  </button>
+
+                  {userMenuOpen && (
+                    <div className="nav-user-menu">
+                      <Link
+                        href="/perfil"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="nav-user-menu-item"
+                      >
+                        <User size={16} />
+                        <span>Perfil</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={onLogout}
+                        className="nav-user-menu-logout"
+                      >
+                        <LogOut size={16} />
+                        <span>Cerrar sesión</span>
+                      </button>
+                    </div>
+                  )}
+                {/* logout icon (lo dejas como estaba) */}
+
+              </div>
+            )}
+          </div>
+
           <button
-            className={`nav-burger ${open ? "open" : ""}`}
+            className="nav-burger"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
             type="button"
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
           >
-            {open ? <X size={20} /> : <Menu size={20} />}
+            <Menu size={20} />
           </button>
         </div>
       </nav>
 
-      {/* Mobile radial menu layer */}
-      <div className={`nav-mobile ${open ? "open" : ""}`} aria-hidden={!open}>
+      <div className={`nav-mobile ${mobileOpen ? "open" : ""}`}>
         <button
           className="nav-backdrop"
-          aria-label="Close menu backdrop"
-          onClick={() => setOpen(false)}
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close menu"
+          type="button"
         />
 
-        <div className="nav-mobile-card" role="dialog" aria-label="Mobile menu">
+        <div className="nav-mobile-card" role="dialog" aria-modal="true">
           <div className="nav-mobile-header">
-            {/* Mobile: LOGO SOLO EN POPUP */}
             <div className="nav-mobile-brand">
-              <img
-                className="nav-mobile-logo"
-                src="/images/logos/de-logo-white.png"
-                alt="PRG Dinamics"
-              />
+              <span className="nav-mobile-title">PRG Dinamics</span>
             </div>
 
             <button
               className="nav-close"
-              onClick={() => setOpen(false)}
-              aria-label="Close menu"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close"
               type="button"
             >
               <X size={18} />
@@ -120,19 +246,50 @@ export default function Navbar() {
           </div>
 
           <div className="nav-mobile-links">
-            {links.map((l) => (
+            {NAV_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
                 className={`nav-mobile-link ${isActive(l.href) ? "active" : ""}`}
               >
-                {l.label}
+                <span>{l.label}</span>
+                <ChevronRight size={18} />
               </Link>
             ))}
-          </div>
 
+            <div className="nav-mobile-divider" />
+
+            {!sessionReady ? (
+              <div style={{ height: 44 }} />
+            ) : !session ? (
+              <Link className="nav-mobile-auth" href={`/auth/login?next=${encodeURIComponent(next)}`}>
+                <LogIn size={18} />
+                <span>Ingresar</span>
+              </Link>
+            ) : (
+              <div className="nav-mobile-user">
+                <div className="nav-user-pill" title={email}>
+                  <UserRound size={18} />
+                  <span>Bienvenido, {label}</span>
+                </div>
+
+                {/* ✅ Perfil también en mobile */}
+                <Link className="nav-mobile-auth" href="/perfil">
+                  <User size={18} />
+                  <span>Perfil</span>
+                </Link>
+
+                <button className="nav-mobile-logout" onClick={onLogout} type="button">
+                  <LogOut size={18} />
+                  <span>Cerrar sesión</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      <div className="nav-spacer" />
     </>
   );
 }

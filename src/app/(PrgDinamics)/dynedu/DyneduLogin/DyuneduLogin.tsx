@@ -14,7 +14,7 @@ const DEFAULT_WHATSAPP = "51999999999";
 export default function DyneduLogin() {
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,25 +24,28 @@ export default function DyneduLogin() {
 
   const whatsappHref = useMemo(() => {
     const text = encodeURIComponent(
-      `Hola, necesito acceso a la Intranet DynEdu.\n\nUsername: ${username || "(aún no ingresado)"}\nMotivo: Solicitar/recuperar acceso.`
+      `Hola, necesito acceso a la Intranet DynEdu.\n\nEmail: ${email || "(aún no ingresado)"}\nMotivo: Solicitar/recuperar acceso.`
     );
     return `https://wa.me/${whatsappNumber}?text=${text}`;
-  }, [whatsappNumber, username]);
+  }, [whatsappNumber, email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!username.trim()) return setError("Ingresa tu username.");
+    if (!email.trim()) return setError("Ingresa tu email.");
     if (!password.trim()) return setError("Ingresa tu contraseña.");
 
     setLoading(true);
     try {
-      const res = await loginWithUsername({ username, password });
+      // Mantengo la firma { username, password } para no romper tu action import
+      const res = await loginWithUsername({ username: email, password });
+
       if (res.ok === false) {
-      setError(res.error);
-      return;
-}
+        setError(res.error);
+        return;
+      }
+
       router.push("/dynedu/actividad");
     } catch {
       setError("Credenciales inválidas o no tienes acceso.");
@@ -71,12 +74,12 @@ export default function DyneduLogin() {
 
           <h1 className="dyTitle">Intranet DynEdu</h1>
           <p className="dySubtitle">
-            Ingresa tu <b>username</b> y tu <b>contraseña</b> para acceder al panel.
+            Ingresa tu <b>email</b> y tu <b>contraseña</b> para acceder al panel.
           </p>
 
           <form onSubmit={handleSubmit} className="dyForm">
             <div className="dyField">
-              <label className="dyLabel">Usuario</label>
+              <label className="dyLabel">Email</label>
               <div className="dyInputWrap">
                 <span className="dyIcon" aria-hidden="true">
                   <User size={18} />
@@ -84,11 +87,11 @@ export default function DyneduLogin() {
 
                 <input
                   className="dyInput"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="username@correo.com"
                   type="text"
-                  autoComplete="username"
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -123,12 +126,10 @@ export default function DyneduLogin() {
             {error && <div className="dyError">{error}</div>}
 
             <button className="dyPrimary" type="submit" disabled={loading}>
-              <span className="dyPrimaryIcon" aria-hidden="true">
-                <LogIn size={18} />
-              </span>
+            
               <span>{loading ? "Validando..." : "Ingresar"}</span>
-              <span className="dyPrimaryArrow" aria-hidden="true">
-                <ArrowRight size={18} />
+                <span className="dyPrimaryIcon" aria-hidden="true">
+                <LogIn size={18} />
               </span>
             </button>
 

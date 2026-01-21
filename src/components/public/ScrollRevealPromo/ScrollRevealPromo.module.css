@@ -1,0 +1,141 @@
+/* ScrollRevealPromo.module.css */
+
+.wrap {
+  width: 100%;
+
+  /* pegado visual al hero */
+  margin-top: -34px;
+  padding-top: 34px;
+
+  /* IMPORTANT: no background (hereda del heroScene) */
+  background: transparent;
+}
+
+.card {
+  position: relative;
+  border-radius: 26px;
+  overflow: hidden;
+
+  /* no caja, no borde, no sombra */
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* ✅ Fade superior para continuidad con el hero (evita “línea/corte”) */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+
+  /* overlay global suave, sin "corte" */
+  background: radial-gradient(circle at 55% 25%, rgba(136,135,232,0.10), transparent 100%);
+}
+
+
+/* máscara */
+.viewport {
+  position: relative;
+  height: var(--promo-h, 360px);
+  overflow: hidden;
+  z-index: 2;
+}
+
+/* imagen reveal */
+.bg {
+  position: absolute;
+  inset: -20px;
+  background-size: cover;
+  background-position: center;
+  will-change: transform;
+  opacity: 0.92;
+  z-index: 2;
+}
+
+/* overlay para lectura */
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background:
+    radial-gradient(900px 300px at 15% 30%, rgba(132, 94, 247, 0.34), transparent 60%),
+    radial-gradient(900px 300px at 85% 85%, rgba(126, 228, 255, 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.62));
+}
+
+.content {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 18px;
+  z-index: 5;
+  color: #fff;
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
+}
+
+.title {
+  margin: 12px 0 6px;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 900;
+}
+
+.subtitle {
+  margin: 0 0 14px;
+  opacity: 0.92;
+  max-width: 640px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primary,
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.primary {
+  background: #7ee4ff;
+  color: #0b1220;
+}
+
+.ghost {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+@media (max-width: 720px) {
+  .wrap {
+    margin-top: -22px;
+    padding-top: 22px;
+  }
+  .viewport {
+    height: 300px;
+  }
+  .title {
+    font-size: 22px;
+  }
+}

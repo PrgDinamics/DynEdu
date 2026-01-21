@@ -1,309 +1,434 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { supabaseBrowser } from "@/lib/supabaseBrowserClient";
-import { useSearchAndPagination } from "@/modules/dynedu/hooks/useSearchAndPagination";
+import "./BooksCatalogClient.css";
 
-type BookProduct = {
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowserClient";
+
+import {
+  addToCart,
+  clearCart,
+  CART_EVENT_NAME,
+  CART_STORAGE_KEY,
+  getCart,
+} from "@/lib/store/cart";
+
+// ✅ Ajusta la ruta si tu modal está en otro lado
+import AuthRequiredModal from "../modals/AuthRequiredModal";
+
+type BookRow = {
   id: number;
   descripcion: string;
   editorial: string | null;
-  autor: string | null;
-  anio_publicacion: number | null;
-  isbn: string | null;
-  edicion: string | null;
+  codigo_venta: string | null;
   foto_url: string | null;
+  anio_publicacion: number | null;
+  is_public: boolean;
 };
 
-function normalize(value: unknown) {
-  return String(value ?? "").toLowerCase();
+type BookView = BookRow & {
+  price: number; // computed from price_list_items
+};
+
+const PAGE_SIZE = 9;
+
+// ---- Pricing helpers (based on your DB schema) ----
+async function getDefaultPriceListId(supabase: any): Promise<number | null> {
+  const { data: preferred, error: e1 } = await supabase
+    .from("price_lists")
+    .select("id")
+    .eq("estado", true)
+    .eq("es_predeterminada", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (!e1 && preferred?.id) return Number(preferred.id);
+
+  const { data: fallback } = await supabase
+    .from("price_lists")
+    .select("id")
+    .eq("estado", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return fallback?.id ? Number(fallback.id) : null;
+}
+
+async function getPricesMap(
+  supabase: any,
+  priceListId: number,
+  productIds: number[]
+): Promise<Map<number, number>> {
+  const map = new Map<number, number>();
+  if (!priceListId || productIds.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("price_list_items")
+    .select("producto_id,precio")
+    .eq("price_list_id", priceListId)
+    .in("producto_id", productIds);
+
+  if (error) {
+    console.error("[pricing] price_list_items error:", error);
+    return map;
+  }
+
+  (data ?? []).forEach((row: any) => {
+    map.set(Number(row.producto_id), Number(row.precio ?? 0));
+  });
+
+  return map;
 }
 
 export default function BooksCatalogClient() {
-  const [products, setProducts] = useState<BookProduct[]>([]);
+  // ✅ Unified client (same across app)
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
+  const [books, setBooks] = useState<BookView[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const [q, setQ] = useState("");
+  const [editorial, setEditorial] = useState("Todas");
+  const [year, setYear] = useState("Todos");
+  const [page, setPage] = useState(1);
+
   const [error, setError] = useState<string | null>(null);
 
-  const [editorialFilter, setEditorialFilter] = useState<string>("all");
-  const [yearFilter, setYearFilter] = useState<string>("all");
+  // ✅ Auth source of truth = getUser (NO getSession)
+  const [userReady, setUserReady] = useState(false);
+  const [hasUser, setHasUser] = useState(false);
+
+  // Auth modal gate
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Cart badge
+  const [cartCount, setCartCount] = useState(0);
+
+  // --- Auth tracking (robust) ---
+  useEffect(() => {
+    let alive = true;
+
+    const syncUser = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (!alive) return;
+        setHasUser(!!data?.user);
+        setUserReady(true);
+      } catch {
+        if (!alive) return;
+        setHasUser(false);
+        setUserReady(true);
+      }
+    };
+
+    syncUser();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async () => {
+      await syncUser();
+    });
+
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  // --- Cart count (only if logged in) ---
+  const refreshCartCount = () => {
+    const items = getCart();
+    const total = items.reduce((acc: number, it: any) => acc + (it.quantity ?? 0), 0);
+    setCartCount(total);
+  };
 
   useEffect(() => {
-    let mounted = true;
+    if (!userReady) return;
 
-    async function load() {
-      setLoading(true);
-      setError(null);
+    if (!hasUser) {
+      setCartCount(0);
+      return;
+    }
 
-      const { data, error } = await supabaseBrowser
+    refreshCartCount();
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === CART_STORAGE_KEY) refreshCartCount();
+    };
+    const onCustom = () => refreshCartCount();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(CART_EVENT_NAME, onCustom);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(CART_EVENT_NAME, onCustom);
+    };
+  }, [userReady, hasUser]);
+
+  // Close modal automatically when user becomes logged in
+  useEffect(() => {
+    if (userReady && hasUser) setAuthModalOpen(false);
+  }, [userReady, hasUser]);
+
+  // --- Filters options ---
+  const editoriales = useMemo(() => {
+    const set = new Set<string>();
+    books.forEach((b) => {
+      const v = (b.editorial || "").trim();
+      if (v) set.add(v);
+    });
+    return ["Todas", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [books]);
+
+  const years = useMemo(() => {
+    const set = new Set<number>();
+    books.forEach((b) => {
+      if (typeof b.anio_publicacion === "number") set.add(b.anio_publicacion);
+    });
+    return ["Todos", ...Array.from(set).sort((a, b) => b - a).map(String)];
+  }, [books]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / PAGE_SIZE)), [totalCount]);
+
+  // --- Fetch public catalog + pricing ---
+  const fetchBooks = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase
         .from("productos")
-        .select("id, descripcion, editorial, autor, anio_publicacion, isbn, edicion, foto_url")
-        .order("descripcion", { ascending: true });
+        .select(
+          "id,descripcion,editorial,codigo_venta,foto_url,anio_publicacion,is_public",
+          { count: "exact" }
+        )
+        .eq("is_public", true);
 
-      if (!mounted) return;
-
-      if (error) {
-        setError(error.message);
-        setProducts([]);
-      } else {
-        setProducts((data ?? []) as BookProduct[]);
+      const qq = q.trim();
+      if (qq) {
+        query = query.or(
+          `descripcion.ilike.%${qq}%,editorial.ilike.%${qq}%,codigo_venta.ilike.%${qq}%`
+        );
       }
 
+      if (editorial !== "Todas") query = query.eq("editorial", editorial);
+      if (year !== "Todos") query = query.eq("anio_publicacion", Number(year));
+
+      query = query.order("descripcion", { ascending: true }).range(from, to);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+
+      const rows = (data ?? []) as BookRow[];
+      setTotalCount(count || 0);
+
+      const priceListId = await getDefaultPriceListId(supabase);
+      const ids = rows.map((r) => Number(r.id));
+      const pricesMap = priceListId ? await getPricesMap(supabase, priceListId, ids) : new Map();
+
+      const view: BookView[] = rows.map((r) => ({
+        ...r,
+        price: pricesMap.get(Number(r.id)) ?? 0,
+      }));
+
+      setBooks(view);
+    } catch (e: any) {
+      setBooks([]);
+      setTotalCount(0);
+      setError(e?.message || "Ocurrió un error al cargar los libros.");
+    } finally {
       setLoading(false);
     }
+  };
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useEffect(() => {
+    fetchBooks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, editorial, year, page]);
 
-  const editorialOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of products) {
-      const v = (p.editorial ?? "").trim();
-      if (v) set.add(v);
+  // ✅ Limpiar filtros + vaciar carrito (como pediste)
+  const resetFiltersAndCart = () => {
+    setQ("");
+    setEditorial("Todas");
+    setYear("Todos");
+    setPage(1);
+    clearCart();
+  };
+  
+
+
+
+  const handleAddToCart = async (book: BookView) => {
+    if (!userReady) return;
+
+    if (!hasUser) {
+      setAuthModalOpen(true);
+      return;
     }
-    return ["all", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [products]);
 
-  const yearOptions = useMemo(() => {
-    const set = new Set<number>();
-    for (const p of products) {
-      if (typeof p.anio_publicacion === "number") set.add(p.anio_publicacion);
-    }
-    const years = Array.from(set).sort((a, b) => b - a);
-    return ["all", ...years.map(String)];
-  }, [products]);
+    addToCart(book.id, 1);
+  };
 
-  const facetedData = useMemo(() => {
-    return products.filter((p) => {
-      const okEditorial =
-        editorialFilter === "all" || (p.editorial ?? "") === editorialFilter;
-
-      const okYear =
-        yearFilter === "all" || String(p.anio_publicacion ?? "") === yearFilter;
-
-      return okEditorial && okYear;
-    });
-  }, [products, editorialFilter, yearFilter]);
-
-  const {
-    searchTerm,
-    setSearchTerm,
-    page,
-    setPage,
-    total,
-    totalPages,
-    paginatedData,
-  } = useSearchAndPagination<BookProduct>({
-    data: facetedData,
-    rowsPerPage: 12,
-    sortFn: (a, b) => (a.descripcion ?? "").localeCompare(b.descripcion ?? ""),
-    filterFn: (item, termLower) => {
-      const haystack = [
-        item.descripcion,
-        item.editorial,
-        item.autor,
-        item.isbn,
-        item.edicion,
-        item.anio_publicacion,
-      ]
-        .map(normalize)
-        .join(" ");
-      return haystack.includes(termLower);
-    },
-  });
-
-  const from = total === 0 ? 0 : page * 12 + 1;
-  const to = Math.min(total, (page + 1) * 12);
-
-  const visiblePages = useMemo(() => {
-    const max = 5;
-    const start = Math.max(0, page - 2);
-    const end = Math.min(totalPages - 1, start + (max - 1));
-    const realStart = Math.max(0, end - (max - 1));
-    const arr: number[] = [];
-    for (let i = realStart; i <= end; i++) arr.push(i);
-    return arr;
-  }, [page, totalPages]);
+  const cartHref = hasUser ? "/carrito" : `/auth/login?next=${encodeURIComponent("/carrito")}`;
 
   return (
-    <section className="catalog">
-      <div className="catalog-toolbar">
-        <div className="catalog-search">
-          <label className="catalog-label" htmlFor="q">
-            Buscar
-          </label>
-          <input
-            id="q"
-            className="catalog-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Título, editorial, autor, ISBN..."
-          />
+    <div className="catalog">
+      <AuthRequiredModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        message="Regístrate o inicia sesión para agregar items al carrito."
+        nextPath="/libros"
+      />
+
+      <div className="libros-topbar">
+        <div className="libros-topbar-inner">
+          <div className="libros-search">
+            <span className="libros-search-icon">🔎</span>
+            <input
+              className="libros-search-input"
+              value={q}
+              onChange={(e) => {
+                setPage(1);
+                setQ(e.target.value);
+              }}
+              placeholder="Buscar por título, editorial o código..."
+            />
+          </div>
+
+          <a href={cartHref} className="libros-cart-btn">
+            <span>🛒 Carrito</span>
+            <span className="libros-cart-badge">{hasUser ? cartCount : 0}</span>
+          </a>
+        </div>
+      </div>
+
+      <div className="catalog-toolbar" style={{ marginTop: 0 }}>
+        <div>
+          <div className="catalog-label">Editorial</div>
+          <select
+            className="catalog-select"
+            value={editorial}
+            onChange={(e) => {
+              setPage(1);
+              setEditorial(e.target.value);
+            }}
+          >
+            {editoriales.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="catalog-filters">
-          <div className="catalog-filter">
-            <label className="catalog-label" htmlFor="editorial">
-              Editorial
-            </label>
+          <div>
+            <div className="catalog-label">Año</div>
             <select
-              id="editorial"
               className="catalog-select"
-              value={editorialFilter}
-              onChange={(e) => setEditorialFilter(e.target.value)}
+              value={year}
+              onChange={(e) => {
+                setPage(1);
+                setYear(e.target.value);
+              }}
             >
-              {editorialOptions.map((opt) => (
+              {years.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt === "all" ? "Todas" : opt}
+                  {opt}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="catalog-filter">
-            <label className="catalog-label" htmlFor="year">
-              Año
-            </label>
-            <select
-              id="year"
-              className="catalog-select"
-              value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
-            >
-              {yearOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt === "all" ? "Todos" : opt}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            className="catalog-reset"
-            onClick={() => {
-              setEditorialFilter("all");
-              setYearFilter("all");
-              setSearchTerm("");
-            }}
-            type="button"
-          >
+          <button className="catalog-reset" onClick={resetFiltersAndCart} type="button">
             Limpiar
           </button>
         </div>
       </div>
 
       <div className="catalog-meta">
-        {loading ? (
-          <span>Cargando catálogo…</span>
-        ) : error ? (
-          <span className="catalog-error">Error: {error}</span>
-        ) : (
-          <span>
-            Mostrando <strong>{from}</strong>–<strong>{to}</strong> de{" "}
-            <strong>{total}</strong>
-          </span>
-        )}
+        Mostrando {books.length ? (page - 1) * PAGE_SIZE + 1 : 0}-
+        {Math.min(page * PAGE_SIZE, totalCount)} de {totalCount}
       </div>
 
-      {!loading && !error && total === 0 ? (
-        <div className="catalog-empty">
-          <h3>No encontramos resultados</h3>
-          <p>Prueba con otro término o limpia los filtros.</p>
-        </div>
-      ) : (
-        <div className="catalog-grid">
-          {paginatedData.map((p) => {
-            const cover = p.foto_url?.trim() || "/images/web/book-sample.jpg";
-            return (
-              <article key={p.id} className="catalog-card">
+      {error && <div className="catalog-error">{error}</div>}
+
+      <div className="catalog-grid">
+        {loading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="catalog-card" style={{ opacity: 0.6 }}>
+                <div className="catalog-cover" />
+                <div className="catalog-body">
+                  <div className="catalog-title">Cargando...</div>
+                </div>
+              </div>
+            ))
+          : books.map((b) => (
+              <div key={b.id} className="catalog-card">
                 <div className="catalog-cover">
-                  <img src={cover} alt={p.descripcion} />
+                  <img
+                    src={b.foto_url || "/images/placeholders/book-cover.png"}
+                    alt={b.descripcion}
+                    loading="lazy"
+                  />
                 </div>
 
                 <div className="catalog-body">
-                  <h3 className="catalog-title">{p.descripcion}</h3>
+                  <div className="catalog-title">{b.descripcion}</div>
 
                   <div className="catalog-chips">
-                    {p.editorial ? <span className="chip">{p.editorial}</span> : null}
-                    {p.autor ? <span className="chip chip-soft">{p.autor}</span> : null}
-                    {p.anio_publicacion ? (
-                      <span className="chip chip-soft">{p.anio_publicacion}</span>
-                    ) : null}
-                    {p.isbn ? <span className="chip chip-soft">ISBN: {p.isbn}</span> : null}
+                    {b.editorial && <span className="chip">{b.editorial}</span>}
+                    {b.anio_publicacion && (
+                      <span className="chip chip-soft">{b.anio_publicacion}</span>
+                    )}
+                    {b.codigo_venta && <span className="chip chip-soft">{b.codigo_venta}</span>}
                   </div>
 
+                  <div className="catalog-price">S/ {Number(b.price ?? 0).toFixed(2)}</div>
+
                   <div className="catalog-actions">
-                    <Link
-                      className="btn btn-primary"
-                      href={`/contacto?producto=${encodeURIComponent(p.descripcion)}&id=${p.id}`}
-                    >
-                      Solicitar cotización
-                    </Link>
+                    <button className="btn btn-primary" onClick={() => handleAddToCart(b)} type="button">
+                      + Agregar
+                    </button>
 
-                    <a
-                      className="btn btn-ghost"
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const lines = [
-                          `Título: ${p.descripcion}`,
-                          p.editorial ? `Editorial: ${p.editorial}` : null,
-                          p.autor ? `Autor: ${p.autor}` : null,
-                          p.anio_publicacion ? `Año: ${p.anio_publicacion}` : null,
-                          p.edicion ? `Edición: ${p.edicion}` : null,
-                          p.isbn ? `ISBN: ${p.isbn}` : null,
-                        ].filter(Boolean);
-
-                        alert(lines.join("\n"));
-                      }}
-                    >
-                      Ver detalles
+                    <a className="btn btn-ghost" href={`/libros/${b.id}`}>
+                      Ver
                     </a>
                   </div>
                 </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+              </div>
+            ))}
+      </div>
 
-      {!loading && !error && total > 0 ? (
+      {totalPages > 1 && (
         <div className="catalog-pagination">
           <button
-            className="pager"
-            disabled={page <= 0}
-            onClick={() => setPage(page - 1)}
+            className="catalog-reset"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             type="button"
           >
-            ← Anterior
+            Anterior
           </button>
 
-          <div className="pager-pages">
-            {visiblePages.map((p) => (
-              <button
-                key={p}
-                className={`pager-page ${p === page ? "active" : ""}`}
-                onClick={() => setPage(p)}
-                type="button"
-              >
-                {p + 1}
-              </button>
-            ))}
+          <div>
+            Página {page} / {totalPages}
           </div>
 
           <button
-            className="pager"
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage(page + 1)}
+            className="catalog-reset"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             type="button"
           >
-            Siguiente →
+            Siguiente
           </button>
         </div>
-      ) : null}
-    </section>
+      )}
+    </div>
   );
 }

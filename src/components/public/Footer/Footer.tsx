@@ -40,6 +40,9 @@ export default function Footer() {
               <li><Link href="/libros">Libros</Link></li>
               <li><Link href="/colegios">Colegios</Link></li>
               <li><Link href="/contacto">Contacto</Link></li>
+              <li><Link href="/terminos-y-condiciones">Terminos y Condiciones</Link></li>
+
+
             </ul>
           </div>
 

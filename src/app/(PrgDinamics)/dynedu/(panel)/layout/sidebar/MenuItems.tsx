@@ -93,18 +93,19 @@ const Menuitems = [
   },
   {
     id: uniqueId(),
-    title: "Consignaciones",
-    icon: IconTruck,
-    href: "/dynedu/consignaciones",
-    permissionKey: "canViewConsignations",
-  },
-  {
-    id: uniqueId(),
     title: "Tracking",
     icon: IconClipboardText,
     href: "/dynedu/tracking",
     permissionKey: "canViewTracking",
   },
+  {
+    id: uniqueId(),
+    title: "Consignaciones",
+    icon: IconTruck,
+    href: "/dynedu/consignaciones",
+    permissionKey: "canViewConsignations",
+  },
+  
 
   { navlabel: true, subheader: "ALMACÉN" },
   {

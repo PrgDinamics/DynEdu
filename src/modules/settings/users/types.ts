@@ -33,6 +33,7 @@ export type CreateAppUserInput = {
 };
 
 export type UpdateAppUserInput = {
+  username?: string;
   fullName: string;
   email: string;
   roleId: number;

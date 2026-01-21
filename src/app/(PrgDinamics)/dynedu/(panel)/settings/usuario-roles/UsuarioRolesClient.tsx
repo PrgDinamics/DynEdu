@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 
 import {
   Box,
@@ -36,7 +36,7 @@ import {
   resetUserPassword,
   updateUser,
   deactivateUser,
-  updateRolePermissions, // ✅ NEW
+  updateRolePermissions,
 } from "./actions";
 
 type Props = {
@@ -65,7 +65,6 @@ const emptyForm: UserFormState = {
 type PermissionDef = { key: string; label: string };
 
 const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => {
-  // ✅ antes: const [roles] = useState...
   const [roles, setRoles] = useState<AppRole[]>(initialRoles);
   const [users, setUsers] = useState<AppUser[]>(initialUsers);
 
@@ -88,16 +87,50 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
   const [passTitle, setPassTitle] = useState<string>("Contraseña generada");
   const [generatedPassword, setGeneratedPassword] = useState<string>("");
 
-  // ✅ Permisos modal
+  // permisos modal
   const [permOpen, setPermOpen] = useState(false);
   const [permRole, setPermRole] = useState<AppRole | null>(null);
   const [permDraft, setPermDraft] = useState<PermissionMap>({});
   const [savingPerms, setSavingPerms] = useState(false);
 
+  // ✅ Error modal
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorTitle, setErrorTitle] = useState<string>("Error");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
+  // ✅ Confirm modal
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState<string>("Confirmar");
+  const [confirmMessage, setConfirmMessage] = useState<string>("");
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const confirmActionRef = useRef<null | (() => Promise<void> | void)>(null);
+
+  const showError = (message: string, title = "Error") => {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setErrorOpen(true);
+  };
+
+  const askConfirm = (opts: {
+    title: string;
+    message: string;
+    onConfirm: () => Promise<void> | void;
+  }) => {
+    setConfirmTitle(opts.title);
+    setConfirmMessage(opts.message);
+    confirmActionRef.current = opts.onConfirm;
+    setConfirmOpen(true);
+  };
+
   const permissionGroups = useMemo(() => {
     const groups: { title: string; items: PermissionDef[] }[] = [
-      { title: "GENERAL", items: [{ key: "canViewDashboard", label: "Ver dashboard" }] },
-
+      {
+        title: "GENERAL",
+        items: [
+          { key: "canViewDashboard", label: "Ver dashboard" },
+          { key: "canViewActivity", label: "Ver actividad" },
+        ],
+      },
       {
         title: "CATÁLOGO",
         items: [
@@ -109,20 +142,17 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
           { key: "canManagePriceCatalog", label: "Gestionar catálogo de precios" },
           { key: "canViewSuppliers", label: "Ver proveedores" },
           { key: "canManageSuppliers", label: "Gestionar proveedores" },
-          { key: "canViewActivity", label: "Ver actividad" },
         ],
       },
-
       {
         title: "INVENTARIO",
         items: [
           { key: "canViewStock", label: "Ver stock" },
-          { key: "canAdjustStock", label: "Ajustar stock (sensible)" },
+          { key: "canAdjustStock", label: "Ajustar stock" },
           { key: "canViewInventoryMovements", label: "Ver movimientos" },
           { key: "canCreateInventoryMovements", label: "Crear movimientos" },
         ],
       },
-
       {
         title: "OPERACIONES",
         items: [
@@ -136,7 +166,6 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
           { key: "canChangeTrackingStatus", label: "Cambiar estado tracking" },
         ],
       },
-
       {
         title: "ALMACÉN",
         items: [
@@ -144,7 +173,6 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
           { key: "canExportKardex", label: "Exportar kardex" },
         ],
       },
-
       {
         title: "REPORTES",
         items: [
@@ -152,7 +180,6 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
           { key: "canExportSalesCollections", label: "Exportar ventas y cobranzas" },
         ],
       },
-
       {
         title: "CONFIGURACIÓN",
         items: [
@@ -205,11 +232,10 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
     setEditOpen(true);
   };
 
-  // ✅ Abrir permisos
+  // abrir permisos
   const openPermsModal = (role: AppRole) => {
     setPermRole(role);
 
-    // Si tu AppRole no incluye permissions, igual arranca vacío.
     const roleAny = role as any;
     const initialPerms: PermissionMap =
       roleAny?.permissions && typeof roleAny.permissions === "object"
@@ -232,17 +258,14 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
       const updated = await updateRolePermissions(permRole.id, permDraft);
 
       if (updated) {
-        // guardamos en estado para que al reabrir ya tenga lo nuevo
-        setRoles((prev) =>
-          prev.map((r) => (r.id === (updated as any).id ? (updated as any) : r)),
-        );
+        setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       }
 
       setPermOpen(false);
       setPermRole(null);
     } catch (e) {
       console.error(e);
-      alert("No se pudieron guardar los permisos del rol.");
+      showError("No se pudieron guardar los permisos del rol.");
     } finally {
       setSavingPerms(false);
     }
@@ -255,7 +278,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
       !createForm.email.trim() ||
       createForm.roleId === ""
     ) {
-      alert("Completa username, nombre, correo y rol para crear un usuario.");
+      showError("Completa username, nombre, correo y rol para crear un usuario.", "Datos incompletos");
       return;
     }
 
@@ -280,7 +303,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
       }
     } catch (error) {
       console.error(error);
-      alert("Hubo un problema al crear el usuario.");
+      showError("Hubo un problema al crear el usuario.");
     } finally {
       setCreating(false);
     }
@@ -290,7 +313,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
     if (!editUser) return;
 
     if (!editForm.fullName.trim() || !editForm.email.trim() || editForm.roleId === "") {
-      alert("Completa nombre, correo y rol para actualizar el usuario.");
+      showError("Completa nombre, correo y rol para actualizar el usuario.", "Datos incompletos");
       return;
     }
 
@@ -311,40 +334,44 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
       }
     } catch (error) {
       console.error(error);
-      alert("Hubo un problema al actualizar el usuario.");
+      showError("Hubo un problema al actualizar el usuario.");
     } finally {
       setSavingEdit(false);
     }
   };
 
   const handleResetPassword = async (user: AppUser) => {
-    const ok = window.confirm(
-      `¿Generar una nueva contraseña para "${user.username}"? (La anterior dejará de funcionar)`,
-    );
-    if (!ok) return;
-
-    try {
-      const res = await resetUserPassword(user.id);
-      setPassTitle(`Nueva contraseña • ${user.username}`);
-      setGeneratedPassword((res as any).generatedPassword ?? (res as any).password ?? "");
-      setPassOpen(true);
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo resetear la contraseña.");
-    }
+    askConfirm({
+      title: "Resetear contraseña",
+      message: `¿Generar una nueva contraseña para "${user.username}"? La anterior dejará de funcionar.`,
+      onConfirm: async () => {
+        try {
+          const res = await resetUserPassword(user.id);
+          setPassTitle(`Nueva contraseña • ${user.username}`);
+          setGeneratedPassword((res as any).generatedPassword ?? (res as any).password ?? "");
+          setPassOpen(true);
+        } catch (error) {
+          console.error(error);
+          showError("No se pudo resetear la contraseña.");
+        }
+      },
+    });
   };
 
   const handleDeactivateUser = async (user: AppUser) => {
-    const ok = window.confirm(`¿Desactivar al usuario "${user.fullName}" (${user.email})?`);
-    if (!ok) return;
-
-    try {
-      await deactivateUser(user.id);
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isActive: false } : u)));
-    } catch (error) {
-      console.error(error);
-      alert("Hubo un problema al desactivar el usuario.");
-    }
+    askConfirm({
+      title: "Desactivar usuario",
+      message: `¿Desactivar al usuario "${user.fullName}" (${user.email})?`,
+      onConfirm: async () => {
+        try {
+          await deactivateUser(user.id);
+          setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isActive: false } : u)));
+        } catch (error) {
+          console.error(error);
+          showError("Hubo un problema al desactivar el usuario.");
+        }
+      },
+    });
   };
 
   return (
@@ -420,12 +447,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
             </Stack>
 
             <Stack direction="row" justifyContent="flex-end">
-              <Button
-                variant="contained"
-                sx={{ minWidth: 180 }}
-                onClick={handleCreateUser}
-                disabled={creating}
-              >
+              <Button variant="contained" sx={{ minWidth: 180 }} onClick={handleCreateUser} disabled={creating}>
                 {creating ? "Creando..." : "Crear usuario"}
               </Button>
             </Stack>
@@ -469,9 +491,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
                         variant={u.isActive ? "filled" : "outlined"}
                       />
                     </TableCell>
-                    <TableCell>
-                      {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "—"}
-                    </TableCell>
+                    <TableCell>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "—"}</TableCell>
                     <TableCell align="center">
                       <Stack direction="row" spacing={1} justifyContent="center">
                         <Tooltip title="Ver detalle">
@@ -543,7 +563,6 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
                 <Stack direction="row" spacing={1} alignItems="center">
                   {role.isDefault && <Chip size="small" label="Rol por defecto" color="primary" />}
 
-                  {/* ✅ BOTÓN QUE FALTABA */}
                   <Button variant="outlined" size="small" onClick={() => openPermsModal(role)}>
                     Permisos
                   </Button>
@@ -554,7 +573,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
         </CardContent>
       </Card>
 
-      {/* ✅ MODAL PERMISOS */}
+      {/* MODAL PERMISOS */}
       <Dialog open={permOpen} onClose={() => setPermOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Permisos del rol: {permRole?.name ?? ""}</DialogTitle>
         <DialogContent dividers>
@@ -569,12 +588,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
                   {g.items.map((p) => (
                     <FormControlLabel
                       key={p.key}
-                      control={
-                        <Switch
-                          checked={permDraft[p.key] === true}
-                          onChange={() => togglePerm(p.key)}
-                        />
-                      }
+                      control={<Switch checked={permDraft[p.key] === true} onChange={() => togglePerm(p.key)} />}
                       label={p.label}
                     />
                   ))}
@@ -617,19 +631,14 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
                 <Typography variant="body2" color="text.secondary">
                   Rol:
                 </Typography>
-                <Typography variant="subtitle2">
-                  {getRoleById(viewUser.roleId)?.name ?? "—"}
-                </Typography>
+                <Typography variant="subtitle2">{getRoleById(viewUser.roleId)?.name ?? "—"}</Typography>
               </Stack>
 
               <Stack spacing={0.3}>
                 <Typography variant="body2" color="text.secondary">
                   Estado:
                 </Typography>
-                <Typography
-                  variant="subtitle2"
-                  color={viewUser.isActive ? "success.main" : "text.secondary"}
-                >
+                <Typography variant="subtitle2" color={viewUser.isActive ? "success.main" : "text.secondary"}>
                   {viewUser.isActive ? "Activo" : "Inactivo"}
                 </Typography>
               </Stack>
@@ -695,10 +704,7 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
 
             <FormControlLabel
               control={
-                <Switch
-                  checked={editForm.isActive}
-                  onChange={(_, checked) => handleEditChange("isActive", checked)}
-                />
+                <Switch checked={editForm.isActive} onChange={(_, checked) => handleEditChange("isActive", checked)} />
               }
               label="Usuario activo"
             />
@@ -748,6 +754,61 @@ const UsuarioRolesClient: React.FC<Props> = ({ initialRoles, initialUsers }) => 
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPassOpen(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ MODAL CONFIRMACIÓN */}
+      <Dialog
+        open={confirmOpen}
+        onClose={() => (confirmLoading ? null : setConfirmOpen(false))}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{confirmTitle}</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary">
+            {confirmMessage}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)} disabled={confirmLoading}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            disabled={confirmLoading}
+            onClick={async () => {
+              if (!confirmActionRef.current) {
+                setConfirmOpen(false);
+                return;
+              }
+              try {
+                setConfirmLoading(true);
+                await confirmActionRef.current();
+                setConfirmOpen(false);
+              } finally {
+                setConfirmLoading(false);
+                confirmActionRef.current = null;
+              }
+            }}
+          >
+            {confirmLoading ? "Procesando..." : "Confirmar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ MODAL ERROR */}
+      <Dialog open={errorOpen} onClose={() => setErrorOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{errorTitle}</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary">
+            {errorMessage}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setErrorOpen(false)}>
+            OK
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

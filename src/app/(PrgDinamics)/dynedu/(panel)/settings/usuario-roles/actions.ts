@@ -1,7 +1,8 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import bcrypt from "bcryptjs";
+import { createSupabaseServerClient } from "@/lib/supabaseClient";
+
 import type {
   AppRole,
   AppUser,
@@ -11,6 +12,18 @@ import type {
   ResetPasswordResult,
   UpdateAppUserInput,
 } from "@/modules/settings/users/types";
+
+type AuthzResult =
+  | { ok: true; userId: number; roleKey: string }
+  | {
+      ok: false;
+      reason:
+        | "NOT_AUTHENTICATED"
+        | "NO_PROFILE"
+        | "INACTIVE"
+        | "ROLE_NOT_FOUND"
+        | "NOT_AUTHORIZED";
+    };
 
 type RoleRow = {
   id: number;
@@ -24,10 +37,10 @@ type RoleRow = {
 
 type UserRow = {
   id: number;
+  auth_user_id: string | null;
   username: string | null;
   full_name: string;
   email: string;
-  password_hash?: string | null;
   role_id: number;
   is_active: boolean;
   last_login_at: string | null;
@@ -42,165 +55,258 @@ function safePermissions(value: unknown): PermissionMap {
 function generatePassword(length = 10) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   let out = "";
-  for (let i = 0; i < length; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
+  for (let i = 0; i < length; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
   return out;
 }
 
-const mapRoleRow = (row: RoleRow): AppRole => ({
-  id: row.id,
-  key: row.key,
-  name: row.name,
-  description: row.description,
-  permissions: safePermissions(row.permissions),
-  isDefault: row.is_default,
-});
+const mapRoleRow = (row: RoleRow): AppRole =>
+  ({
+    id: row.id,
+    key: row.key,
+    name: row.name,
+    description: row.description,
+    permissions: safePermissions(row.permissions),
+    isDefault: row.is_default,
+  }) as AppRole;
 
-const mapUserRow = (row: UserRow): AppUser => ({
-  id: row.id,
-  username: row.username ?? "",
-  fullName: row.full_name,
-  email: row.email,
-  roleId: row.role_id,
-  isActive: row.is_active,
-  lastLoginAt: row.last_login_at,
-  createdAt: row.created_at,
-});
+const mapUserRow = (row: UserRow): AppUser =>
+  ({
+    id: row.id,
+    username: row.username ?? "",
+    fullName: row.full_name,
+    email: row.email,
+    roleId: row.role_id,
+    isActive: row.is_active,
+    lastLoginAt: row.last_login_at,
+    createdAt: row.created_at,
+  }) as AppUser;
 
-// Traer roles (SuperAdmin, Admin, Operador)
+// -------------------------------
+// AuthZ (NO throw - safe for pages)
+// -------------------------------
+async function getManageUsersAuthz(): Promise<AuthzResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+
+  if (authErr || !authData?.user) return { ok: false, reason: "NOT_AUTHENTICATED" };
+
+  const { data: me, error: meErr } = await supabase
+    .from("app_users")
+    .select("id, role_id, is_active")
+    .eq("auth_user_id", authData.user.id)
+    .single();
+
+  if (meErr || !me) return { ok: false, reason: "NO_PROFILE" };
+  if (!me.is_active) return { ok: false, reason: "INACTIVE" };
+
+  const { data: role, error: roleErr } = await supabase
+    .from("app_roles")
+    .select("id, key, permissions")
+    .eq("id", me.role_id)
+    .single();
+
+  if (roleErr || !role) return { ok: false, reason: "ROLE_NOT_FOUND" };
+
+  const perms = (role.permissions ?? {}) as Record<string, boolean>;
+  const canManage =
+    role.key === "superadmin" || perms.canManageUsers === true || perms.canManageRoles === true;
+
+  if (!canManage) return { ok: false, reason: "NOT_AUTHORIZED" };
+
+  return { ok: true, userId: me.id, roleKey: role.key };
+}
+
+// -------------------------------
+// AuthZ (throw - for server actions)
+// ✅ FIX TS: no depende del narrowing de `reason`
+// -------------------------------
+async function requireManageUsersOrThrow(): Promise<{ userId: number; roleKey: string }> {
+  const res = await getManageUsersAuthz();
+
+  if (!res.ok) {
+    const reason = (res as { reason?: AuthzResult extends { ok: false; reason: infer R } ? R : string })
+      .reason as AuthzResult extends { ok: false; reason: infer R } ? R : string | undefined;
+
+    const msg =
+      reason === "NOT_AUTHENTICATED"
+        ? "Not authenticated."
+        : reason === "NO_PROFILE"
+          ? "No profile linked (app_users)."
+          : reason === "INACTIVE"
+            ? "User is inactive."
+            : reason === "ROLE_NOT_FOUND"
+              ? "Role not found."
+              : "Not authorized.";
+
+    throw new Error(msg);
+  }
+
+  return { userId: res.userId, roleKey: res.roleKey };
+}
+
+// -------------------------------
+// Fetch roles/users (NO THROW)
+// -------------------------------
 export async function fetchRoles(): Promise<AppRole[]> {
+  const authz = await getManageUsersAuthz();
+  if (!authz.ok) return [];
+
   const { data, error } = await supabaseAdmin
     .from("app_roles")
-    .select(
-      "id, key, name, description, permissions, is_default, created_at",
-    )
+    .select("id, key, name, description, permissions, is_default, created_at")
     .order("id", { ascending: true });
 
   if (error) {
-    console.error("Error fetching roles:", error);
-    throw error;
+    console.error("[fetchRoles]", error);
+    return [];
   }
 
-  const rows = ((data ?? []) as unknown) as RoleRow[];
-  return rows.map(mapRoleRow);
+  return ((data ?? []) as unknown as RoleRow[]).map(mapRoleRow);
 }
 
-// Traer usuarios internos
 export async function fetchUsers(): Promise<AppUser[]> {
+  const authz = await getManageUsersAuthz();
+  if (!authz.ok) return [];
+
   const { data, error } = await supabaseAdmin
     .from("app_users")
     .select(
-      "id, username, full_name, email, role_id, is_active, last_login_at, created_at",
+      "id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at"
     )
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("Error fetching users:", error);
-    throw error;
+    console.error("[fetchUsers]", error);
+    return [];
   }
 
-  const rows = ((data ?? []) as unknown) as UserRow[];
-  return rows.map(mapUserRow);
+  return ((data ?? []) as unknown as UserRow[]).map(mapUserRow);
 }
 
-// Crear usuario interno
-export async function createUser(
-  input: CreateAppUserInput,
-): Promise<CreateUserResult> {
+// -------------------------------
+// Create user (Auth + app_users)
+// -------------------------------
+export async function createUser(input: CreateAppUserInput): Promise<CreateUserResult> {
+  await requireManageUsersOrThrow();
+
+  const email = input.email.trim().toLowerCase();
+  const username = input.username.trim();
+  const fullName = input.fullName.trim();
+
   const generatedPassword = generatePassword(10);
-  const passwordHash = await bcrypt.hash(generatedPassword, 10);
+
+  const { data: authRes, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password: generatedPassword,
+    email_confirm: true,
+    user_metadata: { fullName, username },
+  });
+
+  if (authErr) throw new Error(authErr.message);
+
+  const authUserId = authRes.user?.id;
+  if (!authUserId) throw new Error("Auth user not created.");
 
   const { data, error } = await supabaseAdmin
     .from("app_users")
     .insert({
-      username: input.username.trim(),
-      full_name: input.fullName.trim(),
-      email: input.email.trim(),
-      password_hash: passwordHash,
+      auth_user_id: authUserId,
+      username,
+      full_name: fullName,
+      email,
       role_id: input.roleId,
       is_active: input.isActive,
     })
     .select(
-      "id, username, full_name, email, role_id, is_active, last_login_at, created_at",
+      "id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at"
     )
     .single();
 
   if (error) {
-    console.error("Error creating user:", error);
+    await supabaseAdmin.auth.admin.deleteUser(authUserId);
     throw error;
   }
 
-  return {
-    user: mapUserRow(data as UserRow),
-    generatedPassword,
-  };
+  return { user: mapUserRow(data as unknown as UserRow), generatedPassword };
 }
 
-// Resetear contraseña (genera una nueva y la devuelve para compartirla)
+// -------------------------------
+// Reset password
+// -------------------------------
 export async function resetUserPassword(userId: number): Promise<ResetPasswordResult> {
-  const generatedPassword = generatePassword(10);
-  const passwordHash = await bcrypt.hash(generatedPassword, 10);
+  await requireManageUsersOrThrow();
 
-  const { error } = await supabaseAdmin
+  const { data: row, error: rowErr } = await supabaseAdmin
     .from("app_users")
-    .update({ password_hash: passwordHash })
-    .eq("id", userId);
+    .select("id, auth_user_id")
+    .eq("id", userId)
+    .single();
 
-  if (error) {
-    console.error("Error resetting password:", error);
-    throw error;
-  }
+  if (rowErr) throw rowErr;
+  if (!row?.auth_user_id) throw new Error("User is not linked to Supabase Auth (auth_user_id missing).");
+
+  const generatedPassword = generatePassword(10);
+
+  const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(row.auth_user_id, {
+    password: generatedPassword,
+  });
+
+  if (updErr) throw new Error(updErr.message);
 
   return { userId, generatedPassword };
 }
 
-// Actualizar usuario interno
-export async function updateUser(
-  id: number,
-  input: UpdateAppUserInput,
-): Promise<AppUser | null> {
+// -------------------------------
+// Update user
+// -------------------------------
+export async function updateUser(id: number, input: UpdateAppUserInput): Promise<AppUser | null> {
+  await requireManageUsersOrThrow();
+
+  const email = input.email.trim().toLowerCase();
+
   const { data, error } = await supabaseAdmin
     .from("app_users")
     .update({
       full_name: input.fullName.trim(),
-      email: input.email.trim(),
+      email,
       role_id: input.roleId,
       is_active: input.isActive,
     })
     .eq("id", id)
     .select(
-      "id, username, full_name, email, role_id, is_active, last_login_at, created_at",
+      "id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at"
     )
     .single();
 
-  if (error) {
-    console.error("Error updating user:", error);
-    throw error;
+  if (error) throw error;
+
+  const authUserId = (data as any)?.auth_user_id as string | null;
+  if (authUserId) {
+    const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { email });
+    if (authErr) console.warn("Auth email update failed:", authErr.message);
   }
 
-  return mapUserRow(data as UserRow);
+  return mapUserRow(data as unknown as UserRow);
 }
 
-// "Eliminar" = desactivar usuario (no borrar físico)
+// -------------------------------
+// Deactivate user
+// -------------------------------
 export async function deactivateUser(id: number): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("app_users")
-    .update({ is_active: false })
-    .eq("id", id);
+  await requireManageUsersOrThrow();
 
-  if (error) {
-    console.error("Error deactivating user:", error);
-    throw error;
-  }
+  const { error } = await supabaseAdmin.from("app_users").update({ is_active: false }).eq("id", id);
+  if (error) throw error;
 
   return true;
 }
 
-export async function updateRolePermissions(
-  roleId: number,
-  permissions: Record<string, boolean>,
-) {
+// -------------------------------
+// Update role permissions
+// -------------------------------
+export async function updateRolePermissions(roleId: number, permissions: PermissionMap) {
+  await requireManageUsersOrThrow();
+
   const { data, error } = await supabaseAdmin
     .from("app_roles")
     .update({ permissions })
@@ -210,12 +316,5 @@ export async function updateRolePermissions(
 
   if (error) throw error;
 
-  return {
-    id: data.id,
-    key: data.key,
-    name: data.name,
-    description: data.description,
-    isDefault: data.is_default,
-    permissions: (data.permissions ?? {}) as Record<string, boolean>,
-  };
+  return mapRoleRow(data as unknown as RoleRow);
 }

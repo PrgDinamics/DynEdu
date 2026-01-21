@@ -1,6 +1,6 @@
 import DyneduLogin from "./DyneduLogin/DyuneduLogin";
 import { redirect } from "next/navigation";
-import { getDyneduSessionUser } from "@/lib/dynedu/auth";
+import { createSupabaseServerClient } from "@/lib/supabaseClient";
 
 export const metadata = {
   title: "Intranet DynEdu",
@@ -8,8 +8,10 @@ export const metadata = {
 };
 
 export default async function Page() {
-  const session = await getDyneduSessionUser();
-  if (session) {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.auth.getUser();
+
+  if (data.user) {
     redirect("/dynedu/actividad");
   }
 

@@ -146,7 +146,7 @@ export default function PortalColegiosLogin() {
               <div className="pcHintRow">
                 <span className="pcHintDot" />
                 <span className="pcHint">
-                  Si no tienes código, solicita acceso por WhatsApp.
+                  Si no tienes código, solicita acceso.
                 </span>
               </div>
             </div>
@@ -154,13 +154,11 @@ export default function PortalColegiosLogin() {
             {error && <div className="pcError">{error}</div>}
 
             <button className="pcPrimary" type="submit" disabled={isPending}>
-              <span className="pcPrimaryIcon">
-                <LogIn size={18} />
-              </span>
+
               <span>{isPending ? "Validando..." : "Ingresar"}</span>
-              <span className="pcPrimaryArrow">
-                <ArrowRight size={18} />
-              </span>
+                  <span className="pcPrimaryIcon">
+                <LogIn size={18} />
+              </span> 
             </button>
 
             <a
@@ -170,7 +168,7 @@ export default function PortalColegiosLogin() {
               rel="noreferrer"
             >
               <MessageCircle size={18} />
-              Recuperar acceso por WhatsApp
+              Recuperar contraseña.
             </a>
 
             <div className="pcFooterNote">

@@ -1,10 +1,11 @@
 "use server";
 
-import { supabaseClient } from "@/lib/supabaseClient";
-
+import { createSupabaseServerClient } from "@/lib/supabaseClient";
 // 🧮 Generar código tipo LPR0001
 async function generarCodigoListaPrecio() {
-  const { data, error } = await supabaseClient
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
     .from("price_lists")
     .select("internal_id")
     .order("internal_id", { ascending: false })
@@ -22,7 +23,8 @@ async function generarCodigoListaPrecio() {
 
 // ✅ Asegura que exista una lista de precios por defecto
 export async function ensureDefaultPriceList() {
-  const { data, error } = await supabaseClient
+    const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
     .from("price_lists")
     .select("*")
     .eq("es_predeterminada", true)
@@ -36,7 +38,7 @@ export async function ensureDefaultPriceList() {
 
   const codigo = await generarCodigoListaPrecio();
 
-  const { data: created, error: insertError } = await supabaseClient
+  const { data: created, error: insertError } = await supabase
     .from("price_lists")
     .insert({
       internal_id: codigo,
@@ -56,14 +58,15 @@ export async function ensureDefaultPriceList() {
 
 // 🔹 Productos + precio para una lista
 export async function fetchProductosConPrecios(priceListId: number) {
-  const { data: productos, error: prodError } = await supabaseClient
+    const supabase = await createSupabaseServerClient();
+  const { data: productos, error: prodError } = await supabase
     .from("productos")
     .select("id, internal_id, descripcion")
     .order("internal_id", { ascending: true });
 
   if (prodError) throw prodError;
 
-  const { data: items, error: itemsError } = await supabaseClient
+  const { data: items, error: itemsError } = await supabase
     .from("price_list_items")
     .select("producto_id, precio")
     .eq("price_list_id", priceListId)
@@ -89,7 +92,9 @@ export async function fetchProductosConPrecios(priceListId: number) {
 // 🔹 Packs + precio + productos contenidos
 export async function fetchPacksConPrecios(priceListId: number) {
   // Traemos packs activos
-  const { data: packs, error: packsError } = await supabaseClient
+    const supabase = await createSupabaseServerClient();
+
+  const { data: packs, error: packsError } = await supabase
     .from("packs")
     .select("id, internal_id, nombre, descripcion, estado")
     .order("internal_id", { ascending: true });
@@ -99,7 +104,7 @@ export async function fetchPacksConPrecios(priceListId: number) {
   const activos = (packs ?? []).filter((p) => p.estado !== false);
 
   // Traemos precios existentes
-  const { data: itemsPrecio, error: itemsPrecioError } = await supabaseClient
+  const { data: itemsPrecio, error: itemsPrecioError } = await supabase
     .from("price_list_items")
     .select("pack_id, precio")
     .eq("price_list_id", priceListId)
@@ -122,7 +127,7 @@ export async function fetchPacksConPrecios(priceListId: number) {
   // Traemos los productos que componen cada pack
   const packIds = activos.map((p) => p.id as number);
 
-  const { data: itemsPack, error: itemsPackError } = await supabaseClient
+  const { data: itemsPack, error: itemsPackError } = await supabase
     .from("pack_items")
     .select("pack_id, cantidad, productos (internal_id, descripcion)")
     .in("pack_id", packIds);
@@ -166,11 +171,13 @@ export async function fetchPacksConPrecios(priceListId: number) {
 
 // 🔹 Crear / actualizar precio de PRODUCTO
 export async function upsertPrecioProducto(
+  
   priceListId: number,
   productoId: number,
   precio: number
 ) {
-  const { error } = await supabaseClient
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("price_list_items")
     .upsert(
       {
@@ -193,7 +200,8 @@ export async function upsertPrecioPack(
   packId: number,
   precio: number
 ) {
-  const { error } = await supabaseClient
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("price_list_items")
     .upsert(
       {
@@ -215,7 +223,8 @@ export async function actualizarCabeceraLista(
   priceListId: number,
   data: { nombre?: string; descripcion?: string }
 ) {
-  const { error } = await supabaseClient
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("price_lists")
     .update(data)
     .eq("id", priceListId);

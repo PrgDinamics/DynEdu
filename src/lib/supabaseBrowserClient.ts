@@ -1,8 +1,15 @@
-// src/lib/supabaseBrowserClient.ts
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+let _client: SupabaseClient | null = null;
 
-// Client-side Supabase instance (Auth + queries desde el navegador)
-export const supabaseBrowser = createClient(supabaseUrl, supabaseAnonKey);
+export function createSupabaseBrowserClient() {
+  if (_client) return _client;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  _client = createBrowserClient(url, anon);
+
+  return _client;
+}

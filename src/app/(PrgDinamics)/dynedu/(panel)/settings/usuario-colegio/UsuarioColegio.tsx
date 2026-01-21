@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -23,6 +23,7 @@ import {
   Switch,
   FormControlLabel,
   Divider,
+  TablePagination,
 } from "@mui/material";
 
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -33,6 +34,9 @@ import { IconEdit, IconTrash, IconEye } from "@tabler/icons-react";
 
 import type { Colegio } from "@/modules/dynedu/types";
 import { createColegio, updateColegio, deleteColegio } from "./actions";
+
+// ✅ Ajusta el path si tu hook está en otra ruta
+import { useSearchAndPagination } from "@/modules/dynedu/hooks/useSearchAndPagination";
 
 type Props = {
   initialColegios: Colegio[];
@@ -62,9 +66,85 @@ const emptyForm: ColegioFormState = {
   activo: true,
 };
 
+type AppModalState =
+  | { open: false }
+  | {
+      open: true;
+      title: string;
+      message: string;
+      mode: "info" | "confirm";
+      confirmText?: string;
+      cancelText?: string;
+      onConfirm?: () => void | Promise<void>;
+    };
+
 const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
   const [colegios, setColegios] = useState<Colegio[]>(initialColegios);
   const [showKeys, setShowKeys] = useState<boolean>(false);
+
+  // ✅ MODAL (reemplaza alert/confirm)
+  const [modal, setModal] = useState<AppModalState>({ open: false });
+
+  const openInfo = (title: string, message: string) => {
+    setModal({ open: true, title, message, mode: "info" });
+  };
+
+  const openConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void | Promise<void>,
+    confirmText = "Confirmar",
+    cancelText = "Cancelar",
+  ) => {
+    setModal({
+      open: true,
+      title,
+      message,
+      mode: "confirm",
+      confirmText,
+      cancelText,
+      onConfirm,
+    });
+  };
+
+  const closeModal = () => setModal({ open: false });
+
+  // ✅ Paginación (filas por página)
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+
+  // ✅ Hook: búsqueda + paginación
+  const {
+    searchTerm,
+    setSearchTerm,
+    page,
+    setPage,
+    total,
+    paginatedData,
+  } = useSearchAndPagination<Colegio>({
+    data: colegios,
+    rowsPerPage,
+    // sort opcional (por nombre)
+    sortFn: (a, b) => (a.nombre || "").localeCompare(b.nombre || ""),
+    // filter: igual que tu memo anterior
+    filterFn: (c, termLower) => {
+      const blob = [
+        c.nombre,
+        c.ruc,
+        c.razon_social,
+        c.direccion,
+        c.referencia,
+        c.contacto_nombre,
+        c.contacto_email,
+        c.contacto_celular,
+        c.access_key,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return blob.includes(termLower);
+    },
+  });
 
   // Form creación
   const [createForm, setCreateForm] = useState<ColegioFormState>(emptyForm);
@@ -116,7 +196,10 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
   };
 
   const handleCrearColegio = async () => {
-    if (!createForm.nombre.trim() || !createForm.ruc.trim()) return;
+    if (!createForm.nombre.trim() || !createForm.ruc.trim()) {
+      openInfo("Faltan datos", "Completa al menos RUC y Nombre.");
+      return;
+    }
 
     try {
       setCreating(true);
@@ -134,10 +217,11 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
       if (created) {
         setColegios((prev) => [...prev, created]);
         setCreateForm(emptyForm);
+        openInfo("Listo", "Colegio creado correctamente.");
       }
     } catch (error) {
       console.error(error);
-      alert("Hubo un problema al crear el colegio.");
+      openInfo("Error", "Hubo un problema al crear el colegio.");
     } finally {
       setCreating(false);
     }
@@ -145,7 +229,10 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
 
   const handleGuardarModal = async () => {
     if (!selected) return;
-    if (!modalForm.nombre.trim() || !modalForm.ruc.trim()) return;
+    if (!modalForm.nombre.trim() || !modalForm.ruc.trim()) {
+      openInfo("Faltan datos", "Completa al menos RUC y Nombre.");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -167,45 +254,51 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
         );
         setOpenEditModal(false);
         setSelected(null);
+        openInfo("Listo", "Colegio actualizado correctamente.");
       }
     } catch (error) {
       console.error(error);
-      alert("Hubo un problema al actualizar el colegio.");
+      openInfo("Error", "Hubo un problema al actualizar el colegio.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleEliminarColegio = async (c: Colegio) => {
-    const ok = window.confirm(
+    openConfirm(
+      "Eliminar colegio",
       `¿Eliminar el colegio "${c.nombre}" (${c.ruc})? Esta acción no se puede deshacer.`,
+      async () => {
+        try {
+          await deleteColegio(c.id);
+          setColegios((prev) => prev.filter((x) => x.id !== c.id));
+          if (selected?.id === c.id) {
+            setOpenEditModal(false);
+            setSelected(null);
+          }
+          if (viewColegio?.id === c.id) {
+            setOpenViewModal(false);
+            setViewColegio(null);
+          }
+          openInfo("Listo", "Colegio eliminado correctamente.");
+        } catch (error) {
+          console.error(error);
+          openInfo("Error", "Hubo un problema al eliminar el colegio.");
+        }
+      },
+      "Eliminar",
+      "Cancelar",
     );
-    if (!ok) return;
-
-    try {
-      await deleteColegio(c.id);
-      setColegios((prev) => prev.filter((x) => x.id !== c.id));
-      if (selected?.id === c.id) {
-        setOpenEditModal(false);
-        setSelected(null);
-      }
-      if (viewColegio?.id === c.id) {
-        setOpenViewModal(false);
-        setViewColegio(null);
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Hubo un problema al eliminar el colegio.");
-    }
   };
 
   const handleCopyKey = async (key: string | null) => {
     if (!key) return;
+
     try {
       await navigator.clipboard.writeText(key);
-      alert("Clave copiada al portapapeles");
+      openInfo("Copiado", "Clave copiada al portapapeles.");
     } catch {
-      alert("No se pudo copiar la clave");
+      openInfo("Error", "No se pudo copiar la clave.");
     }
   };
 
@@ -215,8 +308,8 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
         Colegios
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Aquí registras los colegiosy se genera la
-        clave de acceso que les vas a entregar para su portal.
+        Aquí registras los colegios y se genera la clave de acceso que les vas a
+        entregar para su portal.
       </Typography>
 
       {/* FORM CREACIÓN */}
@@ -332,9 +425,27 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
         }}
       >
         <CardContent>
-          <Typography variant="h6" fontWeight={600} mb={2}>
-            Colegios registrados
-          </Typography>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems={{ xs: "stretch", md: "center" }}
+            justifyContent="space-between"
+            mb={2}
+          >
+            <Typography variant="h6" fontWeight={600}>
+              Colegios registrados
+            </Typography>
+
+            {/* ✅ Buscador del hook */}
+            <TextField
+              size="small"
+              label="Buscar"
+              placeholder="Colegio, RUC, contacto, email, celular..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ maxWidth: 360 }}
+            />
+          </Stack>
 
           <Table size="small">
             <TableHead>
@@ -348,14 +459,16 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
-              {colegios.map((c) => (
+              {paginatedData.map((c) => (
                 <TableRow key={c.id} hover>
                   <TableCell>{c.nombre}</TableCell>
                   <TableCell>{c.ruc}</TableCell>
                   <TableCell>{c.contacto_nombre || "—"}</TableCell>
                   <TableCell>{c.contacto_email || "—"}</TableCell>
                   <TableCell>{c.contacto_celular || "—"}</TableCell>
+
                   <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography
@@ -364,6 +477,7 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
                       >
                         {showKeys ? c.access_key || "—" : "••••••••••"}
                       </Typography>
+
                       {c.access_key && (
                         <Tooltip title="Copiar clave">
                           <IconButton
@@ -376,13 +490,9 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
                       )}
                     </Stack>
                   </TableCell>
+
                   <TableCell align="center">
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      justifyContent="center"
-                    >
-                      {/* Ver detalle (solo lectura) */}
+                    <Stack direction="row" spacing={1} justifyContent="center">
                       <Tooltip title="Ver detalle">
                         <IconButton
                           size="small"
@@ -393,7 +503,6 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
                         </IconButton>
                       </Tooltip>
 
-                      {/* Editar */}
                       <Tooltip title="Editar">
                         <IconButton
                           size="small"
@@ -404,7 +513,6 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
                         </IconButton>
                       </Tooltip>
 
-                      {/* Eliminar */}
                       <Tooltip title="Eliminar">
                         <IconButton
                           size="small"
@@ -421,12 +529,26 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
             </TableBody>
           </Table>
 
+          {/* ✅ Paginación */}
+          <TablePagination
+            component="div"
+            count={total}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              const next = parseInt(e.target.value, 10);
+              setRowsPerPage(next);
+              setPage(0);
+            }}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Filas por página"
+          />
+
           <Stack direction="row" justifyContent="flex-end" mt={1}>
             <Button
               size="small"
-              startIcon={
-                showKeys ? <VisibilityOffIcon /> : <VisibilityIcon />
-              }
+              startIcon={showKeys ? <VisibilityOffIcon /> : <VisibilityIcon />}
               onClick={() => setShowKeys((v) => !v)}
             >
               {showKeys ? "Ocultar claves" : "Mostrar claves"}
@@ -435,7 +557,7 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
         </CardContent>
       </Card>
 
-      {/* MODAL DETALLE (solo lectura) */}
+      {/* MODAL DETALLE */}
       <Dialog
         open={openViewModal}
         onClose={() => setOpenViewModal(false)}
@@ -450,9 +572,7 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
                 <Typography variant="body2" color="text.secondary">
                   RUC:
                 </Typography>
-                <Typography variant="subtitle2">
-                  {viewColegio.ruc}
-                </Typography>
+                <Typography variant="subtitle2">{viewColegio.ruc}</Typography>
               </Stack>
 
               <Stack spacing={0.5}>
@@ -468,9 +588,7 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
                 <Typography variant="body2" color="text.secondary">
                   Nombre:
                 </Typography>
-                <Typography variant="subtitle2">
-                  {viewColegio.nombre}
-                </Typography>
+                <Typography variant="subtitle2">{viewColegio.nombre}</Typography>
               </Stack>
 
               <Divider sx={{ my: 1 }} />
@@ -544,7 +662,7 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
         </DialogActions>
       </Dialog>
 
-      {/* MODAL EDITAR (igual que antes) */}
+      {/* MODAL EDITAR */}
       <Dialog
         open={openEditModal}
         onClose={() => setOpenEditModal(false)}
@@ -649,6 +767,38 @@ const UsuarioColegio: React.FC<Props> = ({ initialColegios }) => {
           >
             {saving ? "Guardando..." : "Guardar cambios"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ MODAL GLOBAL (info/confirm) */}
+      <Dialog open={modal.open} onClose={closeModal} maxWidth="sm" fullWidth>
+        {modal.open ? <DialogTitle>{modal.title}</DialogTitle> : null}
+        <DialogContent dividers>
+          <Typography variant="body2">{modal.open ? modal.message : ""}</Typography>
+        </DialogContent>
+        <DialogActions>
+          {modal.open && modal.mode === "confirm" ? (
+            <>
+              <Button onClick={closeModal}>
+                {modal.cancelText ?? "Cancelar"}
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={async () => {
+                  const fn = modal.onConfirm;
+                  closeModal();
+                  if (fn) await fn();
+                }}
+              >
+                {modal.confirmText ?? "Confirmar"}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={closeModal} variant="contained">
+              OK
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

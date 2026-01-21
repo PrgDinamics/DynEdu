@@ -1,0 +1,396 @@
+.checkout-page {
+  min-height: 100vh;
+  padding: 110px 18px 70px; /* navbar safe */
+  color: #eaeaf2;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+  background:
+    radial-gradient(1200px 700px at 20% -10%, rgba(136, 135, 232, 0.28), transparent 60%),
+    radial-gradient(1000px 650px at 90% 10%, rgba(126, 228, 255, 0.18), transparent 55%),
+    radial-gradient(900px 600px at 55% 120%, rgba(255, 167, 38, 0.16), transparent 55%),
+    #070812;
+}
+
+.checkout {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.checkout-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.checkout-back {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+.checkout-back:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.checkout-title {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.2px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.checkout-state {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.88);
+  margin-bottom: 14px;
+}
+
+.checkout-state.is-error {
+  border-color: rgba(255, 92, 92, 0.35);
+  background: rgba(255, 92, 92, 0.10);
+  color: #ffd2d2;
+}
+
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  align-items: start;
+}
+
+/* cards */
+.checkout-form,
+.checkout-summary {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  padding: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+.checkout-form h2,
+.checkout-summary h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.field label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 800;
+}
+
+.field input,
+.field textarea {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(7, 8, 18, 0.55);
+  color: #ffffff;
+  padding: 11px 12px;
+  outline: none;
+  font-size: 14px;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: rgba(255, 193, 7, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.18);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* resumen */
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.16);
+}
+
+.line-title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.line-title small {
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 700;
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 193, 7, 0.25);
+  background: rgba(255, 193, 7, 0.10);
+  margin-bottom: 14px;
+}
+
+.total span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.total strong {
+  font-size: 16px;
+  color: #ffffff;
+}
+
+/* botón naranja/amarillo */
+.pay-btn {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  font-size: 14px;
+  background: linear-gradient(90deg, rgba(255, 122, 0, 0.98), rgba(255, 193, 7, 0.98));
+  color: #101018;
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
+  transition: transform 0.10s ease, opacity 0.15s ease;
+}
+
+.pay-btn:hover {
+  transform: translateY(-1px);
+}
+
+.pay-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+}
+
+/* icons + section titles */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.section-title svg {
+  opacity: 0.9;
+}
+
+.checkout-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkout-center-link {
+  display: block !important;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* buyer card */
+.buyer-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 12px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.buyer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.buyer-main {
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.1;
+}
+
+.buyer-sub {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.70);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.buyer-sub svg {
+  opacity: 0.85;
+}
+
+.dot {
+  opacity: 0.45;
+}
+
+.muted {
+  opacity: 0.72;
+}
+
+.buyer-actions {
+  display: flex;
+  align-items: center;
+}
+
+.buyer-link {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.buyer-link:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* checkbox */
+.checkout-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 14px;
+  font-weight: 900;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.checkout-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: #ffc107;
+}
+
+.checkout-check.is-disabled {
+  opacity: 0.55;
+}
+
+/* inputs with icons */
+.input-ic,
+.textarea-ic {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.input-ic svg,
+.textarea-ic svg {
+  opacity: 0.9;
+}
+
+.input-ic input {
+  width: 100%;
+}
+
+.textarea-ic textarea {
+  width: 100%;
+}
+
+/* hint */
+.checkout-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* button content */
+.pay-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 980px) {
+  .buyer-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .buyer-actions {
+    width: 100%;
+  }
+  .buyer-link {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+
+@media (max-width: 980px) {
+  .checkout-page {
+    padding-top: 96px;
+  }
+  .checkout-grid {
+    grid-template-columns: 1fr;
+  }
+  .checkout-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .checkout-title {
+    font-size: 22px;
+  }
+}

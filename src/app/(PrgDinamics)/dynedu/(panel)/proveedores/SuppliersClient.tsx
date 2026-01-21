@@ -620,17 +620,12 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
           action={
             <TextField
               size="small"
-              placeholder="Buscar por nombre, RUC o contacto..."
+              label="Buscar"
+              placeholder="Código, descripción, editorial, usuario..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
-            />
+              sx={{ maxWidth: 360 }}
+            />        
           }
         />
         <CardContent>

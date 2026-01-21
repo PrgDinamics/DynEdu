@@ -24,6 +24,8 @@ import {
   DialogActions,
   Divider,
   Chip,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -33,13 +35,18 @@ import {
   IconEye,
   IconEyeOff,
   IconUpload,
+  IconX,
 } from "@tabler/icons-react";
+
+import { createSupabaseBrowserClient } from "@/lib/supabaseBrowserClient";
+import ErrorDialog from "../components/error/ErrorDialog";
 
 import type {
   Producto,
   ProductoCreateInput,
   ProductoUpdateInput,
 } from "@/modules/dynedu/types";
+
 import {
   crearProducto,
   actualizarProducto,
@@ -52,50 +59,132 @@ type Props = {
   initialProductos: Producto[];
 };
 
+type DyneduMe = {
+  ok: boolean;
+  user?: {
+    id: string;
+    email?: string;
+    roleId?: number;
+    permissions?: Record<string, boolean>;
+  };
+};
+
+const STORAGE_BUCKET = "product-images";
+
+function sanitizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function uploadProductImage(productId: number, file: File) {
+  const nameLower = file.name.toLowerCase();
+  const isWebpByExt = nameLower.endsWith(".webp");
+  const isWebpByMime = file.type === "image/webp";
+
+  if (!isWebpByExt && !isWebpByMime) {
+    throw new Error("Only WEBP files are allowed.");
+  }
+
+  const supabase = createSupabaseBrowserClient();
+
+  const safeName = sanitizeFileName(file.name);
+  const path = `products/${productId}/${Date.now()}_${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, {
+      upsert: true,
+      contentType: "image/webp",
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export default function ProductsClient({ initialProductos }: Props) {
-  // -----------------------------
-  // Estado base
-  // -----------------------------
   const [productos, setProductos] = useState<Producto[]>(initialProductos || []);
   const [loading, setLoading] = useState(false);
 
-  // formulario
+  // Auth/permissions
+  const [me, setMe] = useState<DyneduMe | null>(null);
+  const permissions = me?.user?.permissions ?? {};
+  const canManageProducts = permissions?.canManageProducts === true;
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/dynedu/me", { cache: "no-store" });
+        if (!alive) return;
+
+        if (!res.ok) {
+          setMe({ ok: false });
+          return;
+        }
+
+        const json = (await res.json()) as DyneduMe;
+        setMe(json);
+      } catch {
+        setMe({ ok: false });
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Error dialog
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorTitle, setErrorTitle] = useState("Ocurrió un error");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const showError = (title: string, message: string) => {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setErrorOpen(true);
+  };
+
+  const showNoAccess = () => {
+    showError(
+      "No autorizado",
+      "No tienes permiso para gestionar productos. Solo puedes visualizar."
+    );
+  };
+
+  // form fields
   const [codigo, setCodigo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [editorial, setEditorial] = useState("");
   const [isbn, setIsbn] = useState("");
+  const [codigoVenta, setCodigoVenta] = useState("");
   const [autor, setAutor] = useState("");
   const [anioPublicacion, setAnioPublicacion] = useState<string>("");
   const [edicion, setEdicion] = useState("");
 
-  // publish flag (public catalog)
   const [isPublic, setIsPublic] = useState<boolean>(false);
 
-  // foto
+  // photo
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoNombre, setFotoNombre] = useState<string>("");
 
-  // filtros / búsqueda
+  // search
   const [busquedaGlobal, setBusquedaGlobal] = useState("");
-  const [filtroCodigo, setFiltroCodigo] = useState("");
-  const [filtroIsbn, setFiltroIsbn] = useState("");
-  const [filtroNombre, setFiltroNombre] = useState("");
-  const [filtroEditorial, setFiltroEditorial] = useState("");
-  const [filtroAutor, setFiltroAutor] = useState("");
-  const [filtroAnio, setFiltroAnio] = useState("");
 
-  // paginación
+  // pagination
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // edición
+  // edit
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // modal de DETALLES
+  // details modal
   const [openDetalle, setOpenDetalle] = useState(false);
   const [productoDetalle, setProductoDetalle] = useState<Producto | null>(null);
 
-  // modal de confirmación (guardar / actualizar / eliminar)
+  // confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMensaje, setConfirmMensaje] = useState("");
   const [confirmType, setConfirmType] = useState<"save" | "delete">("save");
@@ -103,17 +192,17 @@ export default function ProductsClient({ initialProductos }: Props) {
     async () => {}
   );
 
+  const isDeleteConfirm = confirmType === "delete";
+
   // -----------------------------
   // Helpers
   // -----------------------------
-
-  // genera el siguiente código PRO000X
   const cargarSiguienteCodigo = async () => {
     try {
       const nuevo = await generarCodigoProducto();
       if (nuevo) setCodigo(nuevo);
     } catch (err) {
-      console.error("Error generando código de producto", err);
+      console.error("Error generating product code", err);
     }
   };
 
@@ -124,6 +213,7 @@ export default function ProductsClient({ initialProductos }: Props) {
   const limpiarFormulario = () => {
     setDescripcion("");
     setEditorial("");
+    setCodigoVenta("");
     setIsbn("");
     setAutor("");
     setAnioPublicacion("");
@@ -135,12 +225,28 @@ export default function ProductsClient({ initialProductos }: Props) {
   };
 
   const manejarCambioArchivo = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    if (!canManageProducts) {
+      e.target.value = "";
+      showNoAccess();
+      return;
+    }
+
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
 
-    if (!["image/jpeg", "image/png"].includes(file.type)) {
-      alert("Solo se permiten imágenes JPG o PNG.");
-      e.target.value = "";
+    const nameLower = file.name.toLowerCase();
+    const isWebpByExt = nameLower.endsWith(".webp");
+    const isWebpByMime = file.type === "image/webp";
+
+    if (!isWebpByExt && !isWebpByMime) {
+      showError(
+        "Formato no permitido",
+        "Solo se permiten imágenes en formato WEBP (.webp)."
+      );
+      input.value = "";
+      setFotoFile(null);
+      setFotoNombre("");
       return;
     }
 
@@ -149,72 +255,33 @@ export default function ProductsClient({ initialProductos }: Props) {
   };
 
   // -----------------------------
-  // Filtro de productos
+  // Filtering
   // -----------------------------
   const productosFiltrados = useMemo(() => {
     const lista = productos || [];
 
     return lista.filter((p) => {
       const cod = p.internal_id?.toLowerCase() ?? "";
+      const codVenta = ((p as any).codigo_venta ?? "").toString().toLowerCase();
       const desc = p.descripcion?.toLowerCase() ?? "";
-      const edt = p.editorial?.toLowerCase() ?? "";
-      const isbnVal = (p as any).isbn?.toLowerCase?.() ?? "";
-      const autorVal = (p as any).autor?.toLowerCase?.() ?? "";
-      const anioVal =
-        (p as any).anio_publicacion != null
-          ? String((p as any).anio_publicacion)
-          : "";
+      const edt = (p as any).editorial?.toLowerCase?.() ?? "";
+      const isb = (p as any).isbn?.toLowerCase?.() ?? "";
+      const aut = (p as any).autor?.toLowerCase?.() ?? "";
+      const anioVal = ((p as any).anio_publicacion ?? "").toString().toLowerCase();
 
-      const global = busquedaGlobal.trim().toLowerCase();
-      if (global) {
-        if (
-          !(
-            cod.includes(global) ||
-            desc.includes(global) ||
-            edt.includes(global) ||
-            isbnVal.includes(global) ||
-            autorVal.includes(global)
-          )
-        ) {
-          return false;
-        }
-      }
-
-      if (filtroCodigo && !cod.includes(filtroCodigo.toLowerCase())) {
-        return false;
-      }
-      if (filtroIsbn && !isbnVal.includes(filtroIsbn.toLowerCase())) {
-        return false;
-      }
-      if (filtroNombre && !desc.includes(filtroNombre.toLowerCase())) {
-        return false;
-      }
-      if (filtroEditorial && !edt.includes(filtroEditorial.toLowerCase())) {
-        return false;
-      }
-      if (filtroAutor && !autorVal.includes(filtroAutor.toLowerCase())) {
-        return false;
-      }
-      if (filtroAnio && !anioVal.includes(filtroAnio.toLowerCase())) {
-        return false;
-      }
-
+      const blob = `${cod} ${codVenta} ${desc} ${edt} ${isb} ${aut} ${anioVal}`;
+      if (busquedaGlobal && !blob.includes(busquedaGlobal.toLowerCase())) return false;
       return true;
     });
-  }, [
-    productos,
-    busquedaGlobal,
-    filtroCodigo,
-    filtroIsbn,
-    filtroNombre,
-    filtroEditorial,
-    filtroAutor,
-    filtroAnio,
-  ]);
+  }, [productos, busquedaGlobal]);
 
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
-  };
+  const paginaProductos = useMemo(() => {
+    const start = page * rowsPerPage;
+    const end = start + rowsPerPage;
+    return productosFiltrados.slice(start, end);
+  }, [productosFiltrados, page, rowsPerPage]);
+
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
 
   const handleChangeRowsPerPage = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -224,13 +291,20 @@ export default function ProductsClient({ initialProductos }: Props) {
   };
 
   // -----------------------------
-  // Submit (crear / actualizar)
+  // Submit (create / update)
   // -----------------------------
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    if (!descripcion.trim()) {
-      alert("La descripción / nombre es obligatoria.");
+    if (!canManageProducts) {
+      showNoAccess();
+      return;
+    }
+
+    const descFinal = descripcion.trim();
+
+    if (!descFinal) {
+      showError("Campos incompletos", "La descripción / nombre es obligatoria.");
       return;
     }
 
@@ -240,56 +314,128 @@ export default function ProductsClient({ initialProductos }: Props) {
       try {
         setLoading(true);
 
-        const payloadBase: Omit<
+        const payloadBase: (Omit<
           ProductoCreateInput,
           "id" | "created_at" | "updated_at"
-        > & { is_public: boolean } = {
+        > & { is_public: boolean } & { codigo_venta?: string | null }) = {
           internal_id: codigo,
-          descripcion: descripcion.trim(),
+          codigo_venta: codigoVenta.trim() ? codigoVenta.trim() : null,
+          descripcion: descFinal,
           editorial: editorial.trim() || null,
           isbn: isbn.trim() || null,
           autor: autor.trim() || null,
-          anio_publicacion: anioPublicacion
-            ? Number(anioPublicacion)
-            : (null as any),
+          anio_publicacion: anioPublicacion ? Number(anioPublicacion) : (null as any),
           edicion: edicion.trim() || null,
           is_public: isPublic,
-          // foto_url la dejamos para cuando integremos Storage
         };
 
+        // -------- CREATE --------
         if (!esEdicion) {
-          // CREAR
           const creado = (await crearProducto(
             payloadBase as ProductoCreateInput
           )) as Producto;
 
-          setProductos((prev) => [creado, ...prev]);
+          let creadoFinal: Producto = creado;
+
+          if (fotoFile) {
+            const publicUrl = await uploadProductImage(creado.id, fotoFile);
+
+            // ✅ FIX: some updates require descripcion too
+            await actualizarProducto(creado.id, {
+              foto_url: publicUrl,
+              descripcion: creado.descripcion ?? descFinal,
+            } as any);
+
+            creadoFinal = { ...(creado as any), foto_url: publicUrl } as any;
+          }
+
+          setProductos((prev) => [creadoFinal, ...prev]);
           limpiarFormulario();
           await cargarSiguienteCodigo();
-        } else if (editingId !== null) {
-          // ACTUALIZAR
-          await actualizarProducto(
-            editingId,
-            payloadBase as ProductoUpdateInput
-          );
+          return;
+        }
 
-          setProductos((prev) =>
-            prev.map((p) =>
-              p.id === editingId ? { ...p, ...payloadBase } : p
-            )
-          );
+        // -------- UPDATE --------
+        if (editingId !== null) {
+          // if there is an image, upload first then do ONE update with all fields
+          if (fotoFile) {
+            const publicUrl = await uploadProductImage(editingId, fotoFile);
+
+            const updatePayload = {
+              ...(payloadBase as any),
+              foto_url: publicUrl,
+              // ✅ FIX: always send descripcion to satisfy validation
+              descripcion: descFinal,
+            };
+
+            await actualizarProducto(editingId, updatePayload as ProductoUpdateInput);
+
+            setProductos((prev) =>
+              prev.map((p) =>
+                p.id === editingId
+                  ? ({
+                      ...p,
+                      ...payloadBase,
+                      foto_url: publicUrl,
+                      descripcion: descFinal,
+                    } as any)
+                  : p
+              )
+            );
+          } else {
+            // no image, normal update
+            await actualizarProducto(editingId, payloadBase as ProductoUpdateInput);
+
+            setProductos((prev) =>
+              prev.map((p) =>
+                p.id === editingId
+                  ? ({
+                      ...p,
+                      ...payloadBase,
+                      descripcion: descFinal,
+                    } as any)
+                  : p
+              )
+            );
+          }
+
           limpiarFormulario();
           await cargarSiguienteCodigo();
         }
-      } catch (err) {
-        console.error("Error al guardar producto", err);
-        alert("Ocurrió un error al guardar el producto.");
+      } catch (err: any) {
+        console.error("Error saving product", err);
+
+        const raw =
+          err?.message ||
+          err?.error_description ||
+          err?.details ||
+          "Ocurrió un error al guardar el producto.";
+
+        const rawStr = String(raw).toLowerCase();
+        let friendly = String(raw);
+
+        if (rawStr.includes("not authorized")) {
+          friendly = "No tienes permiso para gestionar productos.";
+        } else if (
+          rawStr.includes("storage.objects") ||
+          rawStr.includes("bucket") ||
+          rawStr.includes("object") ||
+          rawStr.includes("storage")
+        ) {
+          friendly =
+            "No se pudo subir la imagen (Storage RLS). Revisa policies del bucket product-images y asegúrate de estar logueado.";
+        } else if (rawStr.includes("row-level security")) {
+          friendly =
+            "No tienes permisos para guardar (RLS). Revisa policies de INSERT/UPDATE en Supabase para la tabla productos.";
+        }
+
+        showError("No se pudo guardar el producto", friendly);
       } finally {
         setLoading(false);
       }
     };
 
-    const resumen = `${codigo} – ${descripcion || "(sin nombre)"}`;
+    const resumen = `${codigo} – ${descFinal || "(sin nombre)"}`;
     setConfirmMensaje(
       editingId
         ? `¿Confirmas actualizar el producto ${resumen}?`
@@ -311,11 +457,14 @@ export default function ProductsClient({ initialProductos }: Props) {
   };
 
   // -----------------------------
-  // Acciones fila (editar / eliminar / ver)
+  // Row actions
   // -----------------------------
   const handleClickEditar = (p: Producto) => {
+    if (!canManageProducts) return showNoAccess();
+
     setEditingId(p.id);
     setCodigo(p.internal_id);
+    setCodigoVenta(((p as any).codigo_venta ?? "") as string);
     setDescripcion(p.descripcion ?? "");
     setEditorial((p as any).editorial ?? "");
     setIsbn((p as any).isbn ?? "");
@@ -333,8 +482,9 @@ export default function ProductsClient({ initialProductos }: Props) {
     }
   };
 
-  // AHORA: eliminar con modal MUI, sin window.confirm
   const handleClickEliminar = (p: Producto) => {
+    if (!canManageProducts) return showNoAccess();
+
     const resumen = `${p.internal_id} – ${p.descripcion ?? ""}`;
 
     const accion = async () => {
@@ -342,17 +492,21 @@ export default function ProductsClient({ initialProductos }: Props) {
         setLoading(true);
         await eliminarProducto(p.id);
         setProductos((prev) => prev.filter((x) => x.id !== p.id));
-      } catch (err) {
-        console.error("Error al eliminar producto", err);
-        alert("No se pudo eliminar el producto.");
+      } catch (err: any) {
+        console.error("Error deleting product", err);
+        const msg = String(err?.message || "No se pudo eliminar el producto.");
+        showError(
+          "No se pudo eliminar",
+          msg.includes("not authorized")
+            ? "No tienes permiso para gestionar productos."
+            : msg
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    setConfirmMensaje(
-      `¿Seguro que deseas eliminar el producto ${resumen}? Esta acción no se puede deshacer.`
-    );
+    setConfirmMensaje(`¿Confirmas eliminar el producto ${resumen}?`);
     setPendienteAccion(() => accion);
     setConfirmType("delete");
     setConfirmOpen(true);
@@ -363,78 +517,73 @@ export default function ProductsClient({ initialProductos }: Props) {
     setOpenDetalle(true);
   };
 
-  // -----------------------------
-  // Publish toggle (table)
-  // -----------------------------
-  const handleTogglePublicado = async (p: Producto) => {
-    const next = !Boolean((p as any).is_public);
-    try {
-      setLoading(true);
-      await setProductoPublicado(p.id, next);
-      setProductos((prev) =>
-        prev.map((x) => (x.id === p.id ? { ...(x as any), is_public: next } : x))
-      );
-    } catch (err) {
-      console.error("Error updating published flag", err);
-      alert("No se pudo actualizar el estado de publicación.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const cerrarDetalle = () => {
     setOpenDetalle(false);
     setProductoDetalle(null);
   };
 
-  // -----------------------------
-  // Render
-  // -----------------------------
-  const sliceInicio = page * rowsPerPage;
-  const sliceFin = sliceInicio + rowsPerPage;
-  const paginaProductos = productosFiltrados.slice(sliceInicio, sliceFin);
+  const handleTogglePublicado = async (p: Producto) => {
+    if (!canManageProducts) return showNoAccess();
 
-  const isDeleteConfirm = confirmType === "delete";
+    try {
+      setLoading(true);
+      const nuevoEstado = !Boolean((p as any).is_public);
+      await setProductoPublicado(p.id, nuevoEstado);
+
+      setProductos((prev) =>
+        prev.map((x) =>
+          x.id === p.id ? ({ ...x, is_public: nuevoEstado } as any) : x
+        )
+      );
+    } catch (err: any) {
+      console.error("Error toggling public flag", err);
+      const msg = String(err?.message || "No se pudo actualizar.");
+      showError(
+        "No se pudo actualizar",
+        msg.includes("not authorized")
+          ? "No tienes permiso para gestionar productos."
+          : msg
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const total = productosFiltrados.length;
 
   return (
     <>
-      {/* CARD 1: FORMULARIO DE PRODUCTO */}
-      <Card
-        elevation={0}
-        sx={{
-          mb: 3,
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
+      <Card sx={{ borderRadius: 3 }}>
         <CardHeader
-          title={
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography variant="h6" fontWeight={600}>
-                Catálogo de productos
-              </Typography>
-            </Stack>
-          }
-          subheader="Completa los campos para registrar libros o packs en el almacén."
+          title="Productos"
+          subheader="Gestiona tus libros para el catálogo público"
         />
 
         <CardContent>
-          <Box component="form" onSubmit={handleSubmit}>
+          {!canManageProducts && (
+            <Box sx={{ mb: 2 }}>
+              <Chip label="Modo solo lectura." variant="outlined" color="warning" />
+            </Box>
+          )}
+
+          <form onSubmit={handleSubmit}>
             <Stack spacing={2}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField label="Código" value={codigo} disabled fullWidth />
                 <TextField
-                  label="ISBN"
-                  value={isbn}
-                  onChange={(e) => setIsbn(e.target.value)}
+                  label="Código interno"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                  size="small"
                   fullWidth
+                  disabled={!canManageProducts || loading}
                 />
                 <TextField
-                  label="Edición"
-                  value={edicion}
-                  onChange={(e) => setEdicion(e.target.value)}
+                  label="Código de Venta"
+                  value={codigoVenta}
+                  onChange={(e) => setCodigoVenta(e.target.value)}
+                  size="small"
                   fullWidth
+                  disabled={!canManageProducts || loading}
                 />
               </Stack>
 
@@ -442,107 +591,115 @@ export default function ProductsClient({ initialProductos }: Props) {
                 label="Nombre"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
+                size="small"
                 fullWidth
+                disabled={!canManageProducts || loading}
               />
-
-              {/* Public / hidden (affects website catalog) */}
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                justifyContent="flex-end"
-                sx={{ mt: -1 }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  Mostrar en Web:
-                </Typography>
-                <Chip
-                  size="small"
-                  label={isPublic ? "PUBLISHED" : "HIDDEN"}
-                  color={isPublic ? "success" : "default"}
-                  variant={isPublic ? "filled" : "outlined"}
-                />
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setIsPublic((v) => !v)}
-                  disabled={loading}
-                >
-                  {isPublic ? "Hide" : "Publish"}
-                </Button>
-              </Stack>
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField
                   label="Editorial"
                   value={editorial}
                   onChange={(e) => setEditorial(e.target.value)}
+                  size="small"
                   fullWidth
+                  disabled={!canManageProducts || loading}
                 />
+                <TextField
+                  label="ISBN"
+                  value={isbn}
+                  onChange={(e) => setIsbn(e.target.value)}
+                  size="small"
+                  fullWidth
+                  disabled={!canManageProducts || loading}
+                />
+              </Stack>
+
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField
                   label="Autor"
                   value={autor}
                   onChange={(e) => setAutor(e.target.value)}
+                  size="small"
                   fullWidth
+                  disabled={!canManageProducts || loading}
                 />
                 <TextField
                   label="Año de publicación"
                   value={anioPublicacion}
                   onChange={(e) => setAnioPublicacion(e.target.value)}
+                  size="small"
                   fullWidth
+                  disabled={!canManageProducts || loading}
+                />
+                <TextField
+                  label="Edición"
+                  value={edicion}
+                  onChange={(e) => setEdicion(e.target.value)}
+                  size="small"
+                  fullWidth
+                  disabled={!canManageProducts || loading}
                 />
               </Stack>
 
-              {/* Campo de archivo estilizado */}
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mb: 0.5 }}
-                >
-                  Foto del libro
-                </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isPublic}
+                    onChange={(e) => setIsPublic(e.target.checked)}
+                    disabled={!canManageProducts || loading}
+                  />
+                }
+                label="Publicar en catálogo"
+              />
 
-                <Stack direction="row" spacing={2} alignItems="center">
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={1}
+                alignItems="center"
+              >
+                <Button
+                  component="label"
+                  variant="outlined"
+                  startIcon={<IconUpload size={18} />}
+                  disabled={!canManageProducts || loading}
+                >
+                  Seleccionar imagen
                   <input
                     id="foto-libro-input"
                     type="file"
-                    accept="image/png, image/jpeg"
-                    style={{ display: "none" }}
+                    hidden
+                    accept="image/webp,.webp"
                     onChange={manejarCambioArchivo}
                   />
-                  <label htmlFor="foto-libro-input">
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<IconUpload size={18} />}
-                      component="span"
-                    >
-                      Seleccionar archivo
-                    </Button>
-                  </label>
+                </Button>
 
+                {fotoNombre ? (
+                  <Chip
+                    label={fotoNombre}
+                    onDelete={() => {
+                      if (!canManageProducts) return showNoAccess();
+
+                      setFotoFile(null);
+                      setFotoNombre("");
+                      const input = document.getElementById(
+                        "foto-libro-input"
+                      ) as HTMLInputElement | null;
+                      if (input) input.value = "";
+                    }}
+                    deleteIcon={<IconX size={14} />}
+                    variant="outlined"
+                  />
+                ) : (
                   <Typography variant="body2" color="text.secondary">
-                    {fotoNombre
-                      ? fotoNombre
-                      : "Ningún archivo seleccionado."}
+                    Solo WEBP (.webp). Si tu imagen está en JPG/PNG, conviértela antes.
                   </Typography>
-                </Stack>
-              </Box>
+                )}
+              </Stack>
 
-              {/* BOTONES DERECHA */}
-              <Stack
-                direction="row"
-                spacing={2}
-                justifyContent="flex-end"
-                sx={{ pt: 1 }}
-              >
-                {editingId && (
-                  <Button
-                    variant="text"
-                    color="inherit"
-                    onClick={cancelarEdicion}
-                  >
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                {editingId !== null && (
+                  <Button onClick={cancelarEdicion} disabled={loading} variant="outlined">
                     Cancelar
                   </Button>
                 )}
@@ -550,38 +707,37 @@ export default function ProductsClient({ initialProductos }: Props) {
                 <Button
                   type="submit"
                   variant="contained"
-                  startIcon={<IconPlus size={18} />}
-                  disabled={loading}
+                  disabled={!canManageProducts || loading}
+                  startIcon={
+                    editingId !== null ? <IconEdit size={18} /> : <IconPlus size={18} />
+                  }
                 >
-                  {editingId ? "Guardar cambios" : "Agregar Producto"}
+                  {editingId !== null ? "Actualizar" : "Registrar"}
                 </Button>
               </Stack>
             </Stack>
-          </Box>
-        </CardContent>
-      </Card>
+          </form>
 
-      {/* CARD 2: TABLA DE PRODUCTOS */}
-      <Card
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <CardHeader
-          title={
-            <Typography variant="subtitle1" fontWeight={600}>
-              Productos registrados
+          <Divider sx={{ my: 3 }} />
+
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            mb={2}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", md: "center" }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {total} producto(s)
             </Typography>
-          }
-          action={
+
             <TextField
               size="small"
-              placeholder="Buscar por código, nombre o ISBN..."
+              label="Buscar"
+              placeholder="Código, descripción, editorial, autor, ISBN..."
               value={busquedaGlobal}
               onChange={(e) => setBusquedaGlobal(e.target.value)}
+              sx={{ maxWidth: 360 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -590,46 +746,47 @@ export default function ProductsClient({ initialProductos }: Props) {
                 ),
               }}
             />
-          }
-        />
+          </Stack>
 
-        <CardContent>
-          <Table size="small" className="tabla-products">
+          <Table size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Código</TableCell>
-                <TableCell>Nombre</TableCell>
+                <TableCell>Código venta</TableCell>
+                <TableCell>Descripción</TableCell>
                 <TableCell>Editorial</TableCell>
                 <TableCell>ISBN</TableCell>
                 <TableCell>Autor</TableCell>
-                <TableCell>Año pub.</TableCell>
-                <TableCell align="center">Publicado</TableCell>
+                <TableCell>Año</TableCell>
+                <TableCell align="center">Catálogo</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {paginaProductos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    No hay productos registrados.
+                  <TableCell colSpan={9} align="center">
+                    <Typography variant="body2" color="text.secondary">
+                      No hay productos para mostrar.
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
                 paginaProductos.map((p) => (
                   <TableRow key={p.id} hover>
                     <TableCell>{p.internal_id}</TableCell>
+                    <TableCell>{((p as any).codigo_venta ?? "—") as any}</TableCell>
                     <TableCell>{p.descripcion}</TableCell>
                     <TableCell>{(p as any).editorial ?? "—"}</TableCell>
                     <TableCell>{(p as any).isbn ?? "—"}</TableCell>
                     <TableCell>{(p as any).autor ?? "—"}</TableCell>
-                    <TableCell>
-                      {(p as any).anio_publicacion ?? "—"}
-                    </TableCell>
+                    <TableCell>{(p as any).anio_publicacion ?? "—"}</TableCell>
+
                     <TableCell align="center">
                       <IconButton
                         size="small"
                         onClick={() => handleTogglePublicado(p)}
-                        disabled={loading}
+                        disabled={!canManageProducts || loading}
                         sx={{
                           color: Boolean((p as any).is_public)
                             ? "success.main"
@@ -648,13 +805,9 @@ export default function ProductsClient({ initialProductos }: Props) {
                         )}
                       </IconButton>
                     </TableCell>
+
                     <TableCell align="center">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="center"
-                      >
-                        {/* Ver detalles */}
+                      <Stack direction="row" spacing={0.5} justifyContent="center">
                         <IconButton
                           size="small"
                           sx={{ color: "info.main" }}
@@ -663,20 +816,20 @@ export default function ProductsClient({ initialProductos }: Props) {
                           <IconEye size={18} />
                         </IconButton>
 
-                        {/* Editar */}
                         <IconButton
                           size="small"
                           sx={{ color: "warning.main" }}
                           onClick={() => handleClickEditar(p)}
+                          disabled={!canManageProducts || loading}
                         >
                           <IconEdit size={18} />
                         </IconButton>
 
-                        {/* Eliminar con modal de confirmación */}
                         <IconButton
                           size="small"
                           sx={{ color: "error.main" }}
                           onClick={() => handleClickEliminar(p)}
+                          disabled={!canManageProducts || loading}
                         >
                           <IconTrash size={18} />
                         </IconButton>
@@ -696,14 +849,11 @@ export default function ProductsClient({ initialProductos }: Props) {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             labelRowsPerPage="Filas por página"
-            labelDisplayedRows={({ from, to, count }) =>
-              `${from}-${to} de ${count}`
-            }
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
           />
         </CardContent>
       </Card>
 
-      {/* MODAL CONFIRMACIÓN (guardar / actualizar / eliminar) */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>
           {isDeleteConfirm ? "Confirmar eliminación" : "Confirmar acción"}
@@ -724,7 +874,6 @@ export default function ProductsClient({ initialProductos }: Props) {
         </DialogActions>
       </Dialog>
 
-      {/* MODAL DETALLES DEL PRODUCTO */}
       <Dialog open={openDetalle} onClose={cerrarDetalle} maxWidth="sm" fullWidth>
         <DialogTitle>Detalle del producto</DialogTitle>
         <DialogContent dividers>
@@ -737,17 +886,17 @@ export default function ProductsClient({ initialProductos }: Props) {
                   color="primary"
                   variant="outlined"
                 />
-                <Typography variant="subtitle1" fontWeight={600}>
-                  {productoDetalle.descripcion}
-                </Typography>
               </Stack>
 
               <Divider />
 
               <Stack spacing={1}>
                 <Typography variant="body2">
-                  <strong>Editorial:</strong>{" "}
-                  {(productoDetalle as any).editorial ?? "—"}
+                  <strong>Código venta:</strong>{" "}
+                  {((productoDetalle as any).codigo_venta ?? "—") as any}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Editorial:</strong> {(productoDetalle as any).editorial ?? "—"}
                 </Typography>
                 <Typography variant="body2">
                   <strong>ISBN:</strong> {(productoDetalle as any).isbn ?? "—"}
@@ -756,8 +905,7 @@ export default function ProductsClient({ initialProductos }: Props) {
                   <strong>Autor:</strong> {(productoDetalle as any).autor ?? "—"}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Edición:</strong>{" "}
-                  {(productoDetalle as any).edicion ?? "—"}
+                  <strong>Edición:</strong> {(productoDetalle as any).edicion ?? "—"}
                 </Typography>
                 <Typography variant="body2">
                   <strong>Año de publicación:</strong>{" "}
@@ -798,6 +946,13 @@ export default function ProductsClient({ initialProductos }: Props) {
           <Button onClick={cerrarDetalle}>Cerrar</Button>
         </DialogActions>
       </Dialog>
+
+      <ErrorDialog
+        open={errorOpen}
+        title={errorTitle}
+        message={errorMessage}
+        onClose={() => setErrorOpen(false)}
+      />
     </>
   );
 }

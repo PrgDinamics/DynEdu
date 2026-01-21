@@ -380,7 +380,8 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
 
           <TextField
             size="small"
-            placeholder="Buscar"
+            label="Buscar"
+            placeholder="Código, colegio, fecha, estado..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);

@@ -1,42 +1,51 @@
 "use server";
 
-import bcrypt from "bcryptjs";
-
+import { createSupabaseServerClient } from "@/lib/supabaseClient";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { createDyneduSession, clearDyneduSession } from "@/lib/dynedu/auth";
 
 export async function loginWithUsername(input: {
-  username: string;
+  username: string; // puede ser username o email
   password: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const username = input.username.trim();
+  const identifier = input.username.trim();
   const password = input.password;
 
-  if (!username) return { ok: false, error: "Ingresa tu username." };
+  if (!identifier) return { ok: false, error: "Ingresa tu usuario o email." };
   if (!password) return { ok: false, error: "Ingresa tu contraseña." };
 
-  const { data: user, error } = await supabaseAdmin
-    .from("app_users")
-    .select("id, username, email, password_hash, is_active")
-    .eq("username", username)
-    .maybeSingle();
+  // 1) Resolver a email si no tiene "@"
+  let email = identifier.toLowerCase();
 
-  if (error || !user) return { ok: false, error: "Credenciales inválidas." };
-  if (!user.is_active) return { ok: false, error: "Usuario inactivo." };
-  if (!user.password_hash) return { ok: false, error: "Usuario sin contraseña." };
+  if (!identifier.includes("@")) {
+    // Busca email por username en app_users (SERVER ONLY, sin filtrar info al cliente)
+    const { data: row, error: uErr } = await supabaseAdmin
+      .from("app_users")
+      .select("email, is_active")
+      .eq("username", identifier)
+      .single();
 
-  const ok = await bcrypt.compare(password, user.password_hash);
-  if (!ok) return { ok: false, error: "Credenciales inválidas." };
+    if (uErr || !row?.email) {
+      return { ok: false, error: "Credenciales inválidas." };
+    }
+    if (row.is_active === false) {
+      return { ok: false, error: "Usuario inactivo." };
+    }
 
-  await createDyneduSession(user.id);
-  await supabaseAdmin
-    .from("app_users")
-    .update({ last_login_at: new Date().toISOString() })
-    .eq("id", user.id);
+    email = String(row.email).toLowerCase();
+  }
+
+  // 2) Login real con Supabase Auth
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    return { ok: false, error: "Credenciales inválidas." };
+  }
 
   return { ok: true };
 }
 
-export async function logoutDynedu() {
-  await clearDyneduSession();
-}

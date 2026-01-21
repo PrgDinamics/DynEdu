@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, FormEvent } from "react";
+import React, { useMemo, useState, FormEvent, useEffect } from "react";
 import {
   Box,
   Card,
@@ -18,43 +18,52 @@ import {
   Stack,
   IconButton,
   Tooltip,
-  InputAdornment,
   TablePagination,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Chip,
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
-import SearchIcon from "@mui/icons-material/Search";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 
+import NoAccess from "../components/error/NoAccess";
+import ErrorDialog from "../components/error/ErrorDialog";
 import { crearPack, eliminarPack } from "./actions";
 
 type ProductoResumen = {
-  id: number;
+  id: string; // UUID
   internal_id: string;
   descripcion: string;
 };
 
-type PackItem = {
-  producto_id: number;
+type PackItemDraft = {
+  producto_id: string; // UUID
   internal_id: string;
   descripcion: string;
+};
+
+// ✅ Normaliza: a veces Supabase devuelve objeto, a veces array
+type PackItemProduct = {
+  internal_id: string;
+  descripcion: string;
+};
+
+type PackItemRow = {
+  id?: string;
+  cantidad?: number | null;
+  producto_id?: string | null;
+  productos: PackItemProduct | PackItemProduct[] | null;
 };
 
 type PackRow = {
-  id: number;
+  id: string; // UUID
   codigo?: string | null;
   internal_id?: string | null;
   nombre: string;
   descripcion?: string | null;
-  items?: {
-    productos: {
-      internal_id: string;
-      descripcion: string;
-    };
-  }[];
+  items?: PackItemRow[] | null;
 };
 
 type PackClientProps = {
@@ -62,44 +71,96 @@ type PackClientProps = {
   productos: ProductoResumen[];
 };
 
-const PackClient: React.FC<PackClientProps> = ({
-  initialPacks,
-  productos,
-}) => {
+type DyneduMe = {
+  ok: boolean;
+  user?: { permissions?: Record<string, boolean> };
+};
+
+const PackClient: React.FC<PackClientProps> = ({ initialPacks, productos }) => {
   const [packs, setPacks] = useState<PackRow[]>(initialPacks || []);
 
+  // auth/permissions
+  const [me, setMe] = useState<DyneduMe | null>(null);
+  const permissions = me?.user?.permissions ?? {};
+  const canManagePacks = permissions?.canManagePacks === true;
+  const canViewPacks = permissions?.canViewPacks === true;
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/dynedu/me", { cache: "no-store" });
+        if (!alive) return;
+
+        if (!res.ok) {
+          setMe({ ok: false });
+          return;
+        }
+
+        const json = (await res.json()) as DyneduMe;
+        setMe(json);
+      } catch {
+        setMe({ ok: false });
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // basic form
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
 
-  // productos del pack (draft)
-  const [items, setItems] = useState<PackItem[]>([]);
+  const [items, setItems] = useState<PackItemDraft[]>([]);
 
-  // Autocomplete interno
-  const [selectedProduct, setSelectedProduct] =
-    useState<ProductoResumen | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductoResumen | null>(
+    null
+  );
   const [productoInput, setProductoInput] = useState("");
 
-  // búsqueda + paginación de packs registrados
+  // search + pagination
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // modal de confirmación (compartido crear / eliminar)
+  // confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [pendingAction, setPendingAction] = useState<() => Promise<void>>(
     () => async () => {}
   );
+
   const [loading, setLoading] = useState(false);
+
+  // error modal
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorTitle, setErrorTitle] = useState("Error");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const showError = (title: string, message: string) => {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setErrorOpen(true);
+  };
+
+  const showNoAccess = () => {
+    showError(
+      "No autorizado",
+      "No tienes permiso para gestionar packs. Solo puedes visualizar."
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // Handlers productos del pack
   // ---------------------------------------------------------------------------
 
   const handleAddProduct = () => {
+    if (!canManagePacks) return showNoAccess();
     if (!selectedProduct) return;
 
-    // evita duplicados
     if (items.some((i) => i.producto_id === selectedProduct.id)) return;
 
     setItems((prev) => [
@@ -111,12 +172,12 @@ const PackClient: React.FC<PackClientProps> = ({
       },
     ]);
 
-    // limpiar selector
     setSelectedProduct(null);
     setProductoInput("");
   };
 
-  const handleRemoveItem = (producto_id: number) => {
+  const handleRemoveItem = (producto_id: string) => {
+    if (!canManagePacks) return showNoAccess();
     setItems((prev) => prev.filter((i) => i.producto_id !== producto_id));
   };
 
@@ -127,12 +188,14 @@ const PackClient: React.FC<PackClientProps> = ({
   const prepareCrearPack = (e: FormEvent) => {
     e.preventDefault();
 
+    if (!canManagePacks) return showNoAccess();
+
     if (!nombre.trim()) {
-      alert("El nombre del pack es obligatorio.");
+      showError("Datos incompletos", "El nombre del pack es obligatorio.");
       return;
     }
     if (items.length === 0) {
-      alert("Debes agregar al menos un producto al pack.");
+      showError("Datos incompletos", "Debes agregar al menos un producto al pack.");
       return;
     }
 
@@ -148,7 +211,7 @@ const PackClient: React.FC<PackClientProps> = ({
           nombre: nombre.trim(),
           descripcion: descripcion.trim() || null,
           items: items.map((i) => ({
-            producto_id: i.producto_id,
+            producto_id: i.producto_id, // UUID
             cantidad: 1,
           })),
         };
@@ -161,9 +224,15 @@ const PackClient: React.FC<PackClientProps> = ({
           setDescripcion("");
           setItems([]);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("[PackClient] error al crear pack", err);
-        alert("Ocurrió un error al registrar el pack.");
+
+        const raw = String(err?.message ?? "Ocurrió un error al registrar el pack.");
+        if (raw.toLowerCase().includes("not authorized")) {
+          showError("No autorizado", "No tienes permiso para gestionar packs.");
+        } else {
+          showError("No se pudo registrar", raw);
+        }
       } finally {
         setLoading(false);
       }
@@ -175,10 +244,12 @@ const PackClient: React.FC<PackClientProps> = ({
   };
 
   // ---------------------------------------------------------------------------
-  // Eliminar pack (también con modal)
+  // Eliminar pack (con modal)
   // ---------------------------------------------------------------------------
 
   const handleDeletePack = (pack: PackRow) => {
+    if (!canManagePacks) return showNoAccess();
+
     const resumen = pack.codigo || pack.internal_id || pack.nombre;
 
     const action = async () => {
@@ -186,9 +257,15 @@ const PackClient: React.FC<PackClientProps> = ({
         setLoading(true);
         await eliminarPack(pack.id);
         setPacks((prev) => prev.filter((p) => p.id !== pack.id));
-      } catch (err) {
+      } catch (err: any) {
         console.error("[PackClient] error al eliminar pack", err);
-        alert("No se pudo eliminar el pack.");
+
+        const raw = String(err?.message ?? "No se pudo eliminar el pack.");
+        if (raw.toLowerCase().includes("not authorized")) {
+          showError("No autorizado", "No tienes permiso para gestionar packs.");
+        } else {
+          showError("No se pudo eliminar", raw);
+        }
       } finally {
         setLoading(false);
       }
@@ -233,9 +310,7 @@ const PackClient: React.FC<PackClientProps> = ({
     });
   }, [packs, search]);
 
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
-  };
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
 
   const handleChangeRowsPerPage = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -249,8 +324,61 @@ const PackClient: React.FC<PackClientProps> = ({
   const paginaPacks = packsFiltrados.slice(sliceStart, sliceEnd);
 
   // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  const renderPackItems = (pack: PackRow) => {
+    const list = pack.items ?? [];
+    if (!list || list.length === 0) {
+      return (
+        <Typography variant="body2" color="text.secondary">
+          Sin productos
+        </Typography>
+      );
+    }
+
+    return list.map((i, idx) => {
+      const qty = i.cantidad ?? 1;
+
+      // ✅ Normalizamos: si viene como array usamos el primero
+      const prod = Array.isArray(i.productos) ? i.productos[0] : i.productos;
+
+      if (!prod) {
+        return (
+          <Box
+            key={`${pack.id}-${idx}`}
+            sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}
+          >
+            <Chip
+              size="small"
+              color="warning"
+              label="Producto no encontrado"
+              sx={{ height: 22 }}
+            />
+            <Typography variant="body2" color="text.secondary">
+              × {qty}
+            </Typography>
+          </Box>
+        );
+      }
+
+      return (
+        <div key={`${pack.id}-${idx}`}>
+          {prod.internal_id} — {prod.descripcion} × {qty}
+        </div>
+      );
+    });
+  };
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+
+  // Si por algún motivo este módulo se monta sin permiso de ver packs,
+  // devolvemos NoAccess (igual ya lo bloquea PanelShell, pero es extra-safe)
+  if (me && !canViewPacks && !canManagePacks) {
+    return <NoAccess />;
+  }
 
   return (
     <>
@@ -277,12 +405,21 @@ const PackClient: React.FC<PackClientProps> = ({
         />
 
         <CardContent>
+          {!canManagePacks && (
+            <Box sx={{ mb: 2 }}>
+              <Chip
+                label="Modo solo lectura (sin permiso para gestionar packs)"
+                variant="outlined"
+                color="warning"
+              />
+            </Box>
+          )}
+
           <Box
             component="form"
             onSubmit={prepareCrearPack}
             sx={{ display: "flex", flexDirection: "column", gap: 2 }}
           >
-            {/* Datos generales */}
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 label="Nombre del pack"
@@ -290,6 +427,7 @@ const PackClient: React.FC<PackClientProps> = ({
                 fullWidth
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
+                disabled={!canManagePacks || loading}
               />
               <TextField
                 label="Descripción"
@@ -297,12 +435,12 @@ const PackClient: React.FC<PackClientProps> = ({
                 fullWidth
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
+                disabled={!canManagePacks || loading}
               />
             </Stack>
 
             <Divider sx={{ my: 2 }} />
 
-            {/* Productos del pack */}
             <Typography
               variant="caption"
               color="text.secondary"
@@ -359,12 +497,12 @@ const PackClient: React.FC<PackClientProps> = ({
                 startIcon={<IconPlus size={18} />}
                 onClick={handleAddProduct}
                 sx={{ height: 40, whiteSpace: "nowrap" }}
+                disabled={!canManagePacks || loading}
               >
                 Agregar producto
               </Button>
             </Stack>
 
-            {/* Tabla de productos agregados */}
             <Box mt={2}>
               {items.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
@@ -388,13 +526,16 @@ const PackClient: React.FC<PackClientProps> = ({
                         <TableCell>1</TableCell>
                         <TableCell align="right">
                           <Tooltip title="Quitar del pack">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleRemoveItem(i.producto_id)}
-                            >
-                              <IconTrash size={16} />
-                            </IconButton>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleRemoveItem(i.producto_id)}
+                                disabled={!canManagePacks || loading}
+                              >
+                                <IconTrash size={16} />
+                              </IconButton>
+                            </span>
                           </Tooltip>
                         </TableCell>
                       </TableRow>
@@ -404,18 +545,12 @@ const PackClient: React.FC<PackClientProps> = ({
               )}
             </Box>
 
-            {/* Botones alineados a la derecha */}
-            <Stack
-              direction="row"
-              justifyContent="flex-end"
-              spacing={1.5}
-              mt={3}
-            >
+            <Stack direction="row" justifyContent="flex-end" spacing={1.5} mt={3}>
               <Button
                 type="submit"
                 variant="contained"
                 startIcon={<IconPlus size={18} />}
-                disabled={loading}
+                disabled={!canManagePacks || loading}
               >
                 Registrar pack
               </Button>
@@ -442,16 +577,11 @@ const PackClient: React.FC<PackClientProps> = ({
           action={
             <TextField
               size="small"
-              placeholder="Buscar por código o nombre..."
+              label="Buscar"
+              placeholder="Código, nombre, descripción..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
+              sx={{ maxWidth: 360 }}
             />
           }
         />
@@ -486,33 +616,20 @@ const PackClient: React.FC<PackClientProps> = ({
                       {pack.codigo ?? pack.internal_id ?? "—"}
                     </TableCell>
                     <TableCell>{pack.nombre}</TableCell>
-                    <TableCell>
-                      {pack.items && pack.items.length > 0 ? (
-                        pack.items.map((i, idx) => (
-                          <div key={`${pack.id}-${idx}`}>
-                            {i.productos.internal_id} —{" "}
-                            {i.productos.descripcion} × 1
-                          </div>
-                        ))
-                      ) : (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                        >
-                          Sin productos
-                        </Typography>
-                      )}
-                    </TableCell>
+                    <TableCell>{renderPackItems(pack)}</TableCell>
                     <TableCell>{pack.descripcion ?? ""}</TableCell>
                     <TableCell align="center">
                       <Tooltip title="Eliminar pack">
-                        <IconButton
-                          size="small"
-                          sx={{ color: "error.main" }}
-                          onClick={() => handleDeletePack(pack)}
-                        >
-                          <IconTrash size={18} />
-                        </IconButton>
+                        <span>
+                          <IconButton
+                            size="small"
+                            sx={{ color: "error.main" }}
+                            onClick={() => handleDeletePack(pack)}
+                            disabled={!canManagePacks || loading}
+                          >
+                            <IconTrash size={18} />
+                          </IconButton>
+                        </span>
                       </Tooltip>
                     </TableCell>
                   </TableRow>
@@ -529,14 +646,12 @@ const PackClient: React.FC<PackClientProps> = ({
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             labelRowsPerPage="Filas por página"
-            labelDisplayedRows={({ from, to, count }) =>
-              `${from}-${to} de ${count}`
-            }
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
           />
         </CardContent>
       </Card>
 
-      {/* MODAL CONFIRMACIÓN (CREAR / ELIMINAR) */}
+      {/* MODAL CONFIRMACIÓN */}
       <Dialog open={confirmOpen} onClose={cancelarAccion}>
         <DialogTitle>
           {esEliminar ? "Confirmar eliminación" : "Confirmar acción"}
@@ -556,6 +671,14 @@ const PackClient: React.FC<PackClientProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* MODAL ERROR */}
+      <ErrorDialog
+        open={errorOpen}
+        title={errorTitle}
+        message={errorMessage}
+        onClose={() => setErrorOpen(false)}
+      />
     </>
   );
 };

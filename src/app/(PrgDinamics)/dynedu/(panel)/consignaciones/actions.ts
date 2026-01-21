@@ -6,6 +6,8 @@ import {
   type ConsignacionStockItem,
 } from "@/app/(PrgDinamics)/dynedu/(panel)/inventario/stock/actions";
 
+import { Resend } from "resend";
+
 export type ConsignacionEstado = "PENDIENTE" | "ABIERTA" | "CERRADA" | "ANULADA";
 
 export type ColegioBasic = {
@@ -653,6 +655,138 @@ export async function denyConsignacionAction(input: {
   }
 }
 
+function parseEmailList(raw?: string | null) {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+}
+
+function safeEmail(v: unknown) {
+  const s = String(v ?? "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : "";
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("es-PE");
+}
+
+async function sendConsignacionClosedEmails(args: {
+  cons: { id: number; codigo: string; colegio_id: number; fecha_salida: string | null; fecha_cierre: string | null };
+  items: Array<{
+    producto_id: number;
+    cantidad: number;
+    cantidad_aprobada: number | null;
+    cantidad_vendida: number;
+    cantidad_devuelta: number;
+    product?: { internal_id: string | null; descripcion: string | null } | null;
+  }>;
+}) {
+  const resendKey = String(process.env.RESEND_API_KEY ?? "").trim();
+  if (!resendKey) return;
+
+  const from =
+    String(process.env.CONSIGNACION_CLOSE_FROM_EMAIL ?? "").trim() ||
+    String(process.env.CONTACT_FROM_EMAIL ?? "").trim();
+
+  const toTeam =
+    parseEmailList(process.env.CONSIGNACION_CLOSE_TO_EMAIL) ||
+    parseEmailList(process.env.CONTACT_TO_EMAIL);
+
+  const finalToTeam = toTeam.length ? toTeam : parseEmailList(process.env.CONTACT_TO_EMAIL);
+
+  if (!from || !finalToTeam.length) return;
+
+  // colegio from DB
+  const { data: colegio } = await supabaseAdmin
+    .from("colegios")
+    .select("nombre_comercial, razon_social, contacto_email, contacto_nombre")
+    .eq("id", args.cons.colegio_id)
+    .maybeSingle();
+
+  const colegioName =
+    colegio?.nombre_comercial || colegio?.razon_social || "Colegio";
+
+  const colegioEmail = safeEmail(colegio?.contacto_email);
+
+  const lines = args.items.map((it) => {
+    const code = it.product?.internal_id ? String(it.product.internal_id) : `ID:${it.producto_id}`;
+    const name = it.product?.descripcion ? String(it.product.descripcion) : "Producto";
+    const approved = Number(it.cantidad_aprobada ?? it.cantidad ?? 0);
+    const sold = Number(it.cantidad_vendida ?? 0);
+    const returned = Number(it.cantidad_devuelta ?? 0);
+    return `- ${code} — ${name} | Approved: ${approved} | Sold: ${sold} | Returned: ${returned}`;
+  });
+
+  const totalApproved = args.items.reduce(
+    (acc, it) => acc + Number(it.cantidad_aprobada ?? it.cantidad ?? 0),
+    0
+  );
+  const totalSold = args.items.reduce((acc, it) => acc + Number(it.cantidad_vendida ?? 0), 0);
+  const totalReturned = args.items.reduce((acc, it) => acc + Number(it.cantidad_devuelta ?? 0), 0);
+
+  const subjectTeam = `[DynEdu] Consignación cerrada ${args.cons.codigo} - ${colegioName}`;
+  const textTeam = [
+    `Consignación cerrada`,
+    `--------------------------------`,
+    `Código: ${args.cons.codigo}`,
+    `Colegio: ${colegioName}`,
+    `Salida: ${formatDate(args.cons.fecha_salida)}`,
+    `Cierre: ${formatDate(args.cons.fecha_cierre)}`,
+    `Totales -> Approved: ${totalApproved} | Sold: ${totalSold} | Returned: ${totalReturned}`,
+    `--------------------------------`,
+    `Items:`,
+    ...lines,
+  ].join("\n");
+
+  const resend = new Resend(resendKey);
+
+  // 1) Team email
+  await resend.emails.send({
+    from,
+    to: finalToTeam,
+    replyTo: colegioEmail || undefined,
+    subject: subjectTeam,
+    text: textTeam,
+  });
+
+  // 2) Colegio confirmation
+  if (colegioEmail) {
+    const subjectSchool = `Consignación cerrada ✅ (${args.cons.codigo})`;
+    const textSchool = [
+      `Hola ${colegioName},`,
+      ``,
+      `Tu consignación ha sido cerrada.`,
+      `Código: ${args.cons.codigo}`,
+      `Fecha salida: ${formatDate(args.cons.fecha_salida)}`,
+      `Fecha cierre: ${formatDate(args.cons.fecha_cierre)}`,
+      `Totales -> Approved: ${totalApproved} | Sold: ${totalSold} | Returned: ${totalReturned}`,
+      ``,
+      `Detalle:`,
+      ...lines,
+      ``,
+      `DynEdu / PRG Dinamics`,
+    ].join("\n");
+
+    await resend.emails.send({
+      from,
+      to: colegioEmail,
+      replyTo: finalToTeam[0],
+      subject: subjectSchool,
+      text: textSchool,
+    });
+  }
+}
+
+
+/**
+ * Cerrar: ABIERTA -> CERRADA (setea fecha_cierre)
+ */
 /**
  * Cerrar: ABIERTA -> CERRADA (setea fecha_cierre)
  */
@@ -660,12 +794,13 @@ export async function closeConsignacionAction(
   consignacionId: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!consignacionId) return { success: false, error: "ID requerido" };
+    const id = Number(consignacionId);
+    if (!Number.isFinite(id) || id <= 0) return { success: false, error: "ID requerido" };
 
     const { data: consRow, error: consErr } = await supabaseAdmin
       .from("consignaciones")
-      .select("id,estado")
-      .eq("id", consignacionId)
+      .select("id,codigo,estado,colegio_id,fecha_salida,fecha_cierre")
+      .eq("id", id)
       .limit(1)
       .maybeSingle();
 
@@ -673,49 +808,65 @@ export async function closeConsignacionAction(
       console.error("[closeConsignacionAction] read consignacion error:", consErr);
       return { success: false, error: "No se pudo leer la consignación" };
     }
-
     if (!consRow) return { success: false, error: "Consignación no encontrada" };
-    if (consRow.estado !== "ABIERTA")
+    if (consRow.estado !== "ABIERTA") {
       return { success: false, error: "Solo se puede cerrar si está ABIERTA" };
+    }
 
-    // Validación: para cerrar, cada item debe tener (vendida + devuelta) == enviada
+    // Read items + product labels
     const { data: items, error: itemsErr } = await supabaseAdmin
       .from("consignacion_items")
-      .select("id,cantidad,cantidad_aprobada,cantidad_devuelta,cantidad_vendida")
-      .eq("consignacion_id", consignacionId);
+      .select("producto_id,cantidad,cantidad_aprobada,cantidad_vendida,cantidad_devuelta, product:productos(internal_id,descripcion)")
+      .eq("consignacion_id", id);
 
     if (itemsErr) {
       console.error("[closeConsignacionAction] read items error:", itemsErr);
       return { success: false, error: "No se pudieron leer items" };
     }
 
+    // Validate: sold + returned must equal approved (or cantidad if approved is null)
     const notBalanced = (items || []).filter((it: any) => {
-      const enviada = Number(it.cantidad_aprobada ?? it.cantidad ?? 0);
-      const dev = Number(it.cantidad_devuelta ?? 0);
-      const ven = Number(it.cantidad_vendida ?? 0);
-      return dev + ven !== enviada;
+      const approved = Number(it.cantidad_aprobada ?? it.cantidad ?? 0);
+      const sold = Number(it.cantidad_vendida ?? 0);
+      const returned = Number(it.cantidad_devuelta ?? 0);
+      return sold + returned !== approved;
     });
 
     if (notBalanced.length) {
       return {
         success: false,
         error:
-          "Para cerrar, registra en todos los items: Devuelta + Vendida = Enviada.",
+          "No se puede cerrar: hay items donde VENDIDA + DEVUELTA no cuadra con lo ENVIADO/APROBADO.",
       };
     }
 
+    const now = new Date().toISOString();
+
     const { error: updErr } = await supabaseAdmin
       .from("consignaciones")
-      .update({
-        estado: "CERRADA",
-        fecha_cierre: new Date().toISOString(),
-      })
-      .eq("id", consignacionId)
+      .update({ estado: "CERRADA", fecha_cierre: now })
+      .eq("id", id)
       .eq("estado", "ABIERTA");
 
     if (updErr) {
       console.error("[closeConsignacionAction] update error:", updErr);
       return { success: false, error: "No se pudo cerrar la consignación" };
+    }
+
+    // Fire-and-forget emails (do not fail closing if email fails)
+    try {
+      await sendConsignacionClosedEmails({
+        cons: {
+          id: consRow.id,
+          codigo: consRow.codigo,
+          colegio_id: consRow.colegio_id,
+          fecha_salida: consRow.fecha_salida,
+          fecha_cierre: now,
+        },
+        items: (items || []) as any,
+      });
+    } catch (e) {
+      console.error("[closeConsignacionAction] email error:", e);
     }
 
     return { success: true };
@@ -724,6 +875,7 @@ export async function closeConsignacionAction(
     return { success: false, error: "Error inesperado al cerrar" };
   }
 }
+
 
 /**
  * Devuelve cantidades (si ya lo usas) — lo dejo como está pero sin romper columnas nuevas
