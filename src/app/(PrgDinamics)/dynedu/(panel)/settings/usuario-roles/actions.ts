@@ -52,11 +52,25 @@ function safePermissions(value: unknown): PermissionMap {
   return value as PermissionMap;
 }
 
-function generatePassword(length = 10) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  let out = "";
-  for (let i = 0; i < length; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return out;
+// ✅ Password generator (Pr08*T style)
+function generatePassword(_length = 6) {
+  // Format: Uppercase + lowercase + 2 digits + 1 symbol + Uppercase
+  // Example: Pr08*T
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const symbols = "*!@#";
+
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+
+  const a = pick(upper);
+  const b = pick(lower);
+  const d1 = pick(digits);
+  const d2 = pick(digits);
+  const sym = pick(symbols);
+  const last = pick(upper);
+
+  return `${a}${b}${d1}${d2}${sym}${last}`;
 }
 
 const mapRoleRow = (row: RoleRow): AppRole =>
@@ -118,14 +132,12 @@ async function getManageUsersAuthz(): Promise<AuthzResult> {
 
 // -------------------------------
 // AuthZ (throw - for server actions)
-// ✅ FIX TS: no depende del narrowing de `reason`
 // -------------------------------
 async function requireManageUsersOrThrow(): Promise<{ userId: number; roleKey: string }> {
   const res = await getManageUsersAuthz();
 
   if (!res.ok) {
-    const reason = (res as { reason?: AuthzResult extends { ok: false; reason: infer R } ? R : string })
-      .reason as AuthzResult extends { ok: false; reason: infer R } ? R : string | undefined;
+    const reason = (res as any).reason as string | undefined;
 
     const msg =
       reason === "NOT_AUTHENTICATED"
@@ -145,94 +157,104 @@ async function requireManageUsersOrThrow(): Promise<{ userId: number; roleKey: s
 }
 
 // -------------------------------
-// Fetch roles/users (NO THROW)
+// Queries
 // -------------------------------
-export async function fetchRoles(): Promise<AppRole[]> {
-  const authz = await getManageUsersAuthz();
-  if (!authz.ok) return [];
+export async function fetchRolesAndUsers(): Promise<{ roles: AppRole[]; users: AppUser[] }> {
+  const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabaseAdmin
+  const { data: rolesData, error: rolesErr } = await supabase
     .from("app_roles")
     .select("id, key, name, description, permissions, is_default, created_at")
     .order("id", { ascending: true });
 
-  if (error) {
-    console.error("[fetchRoles]", error);
-    return [];
-  }
+  if (rolesErr) throw rolesErr;
 
-  return ((data ?? []) as unknown as RoleRow[]).map(mapRoleRow);
-}
-
-export async function fetchUsers(): Promise<AppUser[]> {
-  const authz = await getManageUsersAuthz();
-  if (!authz.ok) return [];
-
-  const { data, error } = await supabaseAdmin
+  const { data: usersData, error: usersErr } = await supabase
     .from("app_users")
-    .select(
-      "id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at"
-    )
-    .order("created_at", { ascending: true });
+    .select("id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at")
+    .order("id", { ascending: true });
 
-  if (error) {
-    console.error("[fetchUsers]", error);
-    return [];
-  }
+  if (usersErr) throw usersErr;
 
-  return ((data ?? []) as unknown as UserRow[]).map(mapUserRow);
+  return {
+    roles: (rolesData ?? []).map(mapRoleRow),
+    users: (usersData ?? []).map(mapUserRow),
+  };
 }
 
 // -------------------------------
-// Create user (Auth + app_users)
+// Actions
 // -------------------------------
 export async function createUser(input: CreateAppUserInput): Promise<CreateUserResult> {
   await requireManageUsersOrThrow();
 
-  const email = input.email.trim().toLowerCase();
-  const username = input.username.trim();
-  const fullName = input.fullName.trim();
+  if (!input.username?.trim()) throw new Error("username is required.");
+  if (!input.fullName?.trim()) throw new Error("fullName is required.");
+  if (!input.email?.trim()) throw new Error("email is required.");
+  if (!input.roleId) throw new Error("roleId is required.");
 
-  const generatedPassword = generatePassword(10);
+  const generatedPassword = generatePassword();
 
   const { data: authRes, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-    email,
+    email: input.email.trim(),
     password: generatedPassword,
     email_confirm: true,
-    user_metadata: { fullName, username },
   });
 
-  if (authErr) throw new Error(authErr.message);
+  if (authErr) throw authErr;
 
-  const authUserId = authRes.user?.id;
-  if (!authUserId) throw new Error("Auth user not created.");
+  const authUserId = authRes?.user?.id;
+  if (!authUserId) throw new Error("Auth user not created (auth_user_id missing).");
 
-  const { data, error } = await supabaseAdmin
+  const { data: createdRow, error: insErr } = await supabaseAdmin
     .from("app_users")
     .insert({
       auth_user_id: authUserId,
-      username,
-      full_name: fullName,
-      email,
+      username: input.username.trim(),
+      full_name: input.fullName.trim(),
+      email: input.email.trim(),
       role_id: input.roleId,
-      is_active: input.isActive,
+      is_active: input.isActive ?? true,
     })
-    .select(
-      "id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at"
-    )
+    .select("id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at")
     .single();
 
-  if (error) {
-    await supabaseAdmin.auth.admin.deleteUser(authUserId);
-    throw error;
-  }
+  if (insErr) throw insErr;
 
-  return { user: mapUserRow(data as unknown as UserRow), generatedPassword };
+  return {
+    user: mapUserRow(createdRow as UserRow),
+    generatedPassword,
+  };
 }
 
-// -------------------------------
-// Reset password
-// -------------------------------
+export async function updateUser(userId: number, input: UpdateAppUserInput): Promise<AppUser | null> {
+  await requireManageUsersOrThrow();
+
+  const patch: Record<string, any> = {};
+
+  if (typeof input.fullName === "string") patch.full_name = input.fullName.trim();
+  if (typeof input.email === "string") patch.email = input.email.trim();
+  if (typeof input.roleId === "number") patch.role_id = input.roleId;
+  if (typeof input.isActive === "boolean") patch.is_active = input.isActive;
+
+  const { data, error } = await supabaseAdmin
+    .from("app_users")
+    .update(patch)
+    .eq("id", userId)
+    .select("id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at")
+    .single();
+
+  if (error) throw error;
+  return data ? mapUserRow(data as UserRow) : null;
+}
+
+export async function deactivateUser(userId: number): Promise<void> {
+  await requireManageUsersOrThrow();
+
+  const { error } = await supabaseAdmin.from("app_users").update({ is_active: false }).eq("id", userId);
+  if (error) throw error;
+}
+
 export async function resetUserPassword(userId: number): Promise<ResetPasswordResult> {
   await requireManageUsersOrThrow();
 
@@ -245,7 +267,7 @@ export async function resetUserPassword(userId: number): Promise<ResetPasswordRe
   if (rowErr) throw rowErr;
   if (!row?.auth_user_id) throw new Error("User is not linked to Supabase Auth (auth_user_id missing).");
 
-  const generatedPassword = generatePassword(10);
+  const generatedPassword = generatePassword();
 
   const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(row.auth_user_id, {
     password: generatedPassword,
@@ -253,68 +275,20 @@ export async function resetUserPassword(userId: number): Promise<ResetPasswordRe
 
   if (updErr) throw new Error(updErr.message);
 
+  // ✅ Fix: ResetPasswordResult requires userId
   return { userId, generatedPassword };
 }
 
-// -------------------------------
-// Update user
-// -------------------------------
-export async function updateUser(id: number, input: UpdateAppUserInput): Promise<AppUser | null> {
-  await requireManageUsersOrThrow();
-
-  const email = input.email.trim().toLowerCase();
-
-  const { data, error } = await supabaseAdmin
-    .from("app_users")
-    .update({
-      full_name: input.fullName.trim(),
-      email,
-      role_id: input.roleId,
-      is_active: input.isActive,
-    })
-    .eq("id", id)
-    .select(
-      "id, auth_user_id, username, full_name, email, role_id, is_active, last_login_at, created_at"
-    )
-    .single();
-
-  if (error) throw error;
-
-  const authUserId = (data as any)?.auth_user_id as string | null;
-  if (authUserId) {
-    const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { email });
-    if (authErr) console.warn("Auth email update failed:", authErr.message);
-  }
-
-  return mapUserRow(data as unknown as UserRow);
-}
-
-// -------------------------------
-// Deactivate user
-// -------------------------------
-export async function deactivateUser(id: number): Promise<boolean> {
-  await requireManageUsersOrThrow();
-
-  const { error } = await supabaseAdmin.from("app_users").update({ is_active: false }).eq("id", id);
-  if (error) throw error;
-
-  return true;
-}
-
-// -------------------------------
-// Update role permissions
-// -------------------------------
-export async function updateRolePermissions(roleId: number, permissions: PermissionMap) {
+export async function updateRolePermissions(roleId: number, perms: PermissionMap): Promise<AppRole | null> {
   await requireManageUsersOrThrow();
 
   const { data, error } = await supabaseAdmin
     .from("app_roles")
-    .update({ permissions })
+    .update({ permissions: perms })
     .eq("id", roleId)
     .select("id, key, name, description, permissions, is_default, created_at")
     .single();
 
   if (error) throw error;
-
-  return mapRoleRow(data as unknown as RoleRow);
+  return data ? mapRoleRow(data as RoleRow) : null;
 }
