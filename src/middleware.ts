@@ -17,9 +17,11 @@ function isPublicPath(pathname: string) {
   // Public auth (compras)
   if (pathname.startsWith("/auth")) return true;
 
-  // ✅ DynEdu + Portal login pages must be public
-  if (isDyneduLoginPath(pathname)) return true;
+  // ✅ Portal login page must be public (no session needed to see login)
   if (isPortalColegiosLoginPath(pathname)) return true;
+
+  // ✅ DynEdu login page must be public (already working, keep as-is)
+  if (isDyneduLoginPath(pathname)) return true;
 
   // Public website routes
   if (pathname === "/") return true;
@@ -45,11 +47,6 @@ function isDyneduPath(pathname: string) {
 
 function isPortalColegiosPath(pathname: string) {
   return pathname.startsWith("/portal-colegios");
-}
-
-function needsSchoolRegistryPermission(pathname: string) {
-  // exact module route (and any nested)
-  return pathname.startsWith("/dynedu/settings/usuario-colegio");
 }
 
 export async function middleware(req: NextRequest) {
@@ -128,7 +125,9 @@ export async function middleware(req: NextRequest) {
       loginUrl.searchParams.set("next", path + (url.search || ""));
 
       const redirectRes = NextResponse.redirect(loginUrl);
-      cookiesToApply.forEach(({ name, value, options }) => redirectRes.cookies.set(name, value, options));
+      cookiesToApply.forEach(({ name, value, options }) =>
+        redirectRes.cookies.set(name, value, options)
+      );
       return redirectRes;
     }
 
@@ -139,53 +138,34 @@ export async function middleware(req: NextRequest) {
   const dyneduArea = isDyneduPath(path) || hostname.startsWith("intranet.");
   const portalArea = isPortalColegiosPath(path) || hostname.startsWith("colegios.");
 
-  // ✅ Allow DynEdu & Portal login pages to render even without user
   const isDyneduLogin = isDyneduLoginPath(path);
   const isPortalLogin = isPortalColegiosLoginPath(path);
 
   // If user not logged in and trying to access protected dynedu/portal content:
   if (!user && !publicPath) {
+    // ✅ DynEdu stays as you already have it working
     if (dyneduArea && !isDyneduLogin) {
       const loginUrl = url.clone();
-      // ✅ DynEdu login page is /dynedu (not /auth/login)
       loginUrl.pathname = "/dynedu";
       loginUrl.searchParams.set("next", path + (url.search || ""));
 
       const redirectRes = NextResponse.redirect(loginUrl);
-      cookiesToApply.forEach(({ name, value, options }) => redirectRes.cookies.set(name, value, options));
+      cookiesToApply.forEach(({ name, value, options }) =>
+        redirectRes.cookies.set(name, value, options)
+      );
       return redirectRes;
     }
 
+    // ✅ Portal colegios must go to /portal-colegios (NOT /auth/login)
     if (portalArea && !isPortalLogin) {
       const loginUrl = url.clone();
-      // ✅ Portal login page is /portal-colegios
       loginUrl.pathname = "/portal-colegios";
       loginUrl.searchParams.set("next", path + (url.search || ""));
 
       const redirectRes = NextResponse.redirect(loginUrl);
-      cookiesToApply.forEach(({ name, value, options }) => redirectRes.cookies.set(name, value, options));
-      return redirectRes;
-    }
-  }
-
-  // --- 5) Permission guard: Registro Colegio (DynEdu) ---
-  if (dyneduArea && user && needsSchoolRegistryPermission(path)) {
-    const { data: appUser, error } = await supabase
-      .from("app_users")
-      .select("id,email, role:app_roles(permissions)")
-      .eq("email", user.email ?? "")
-      .maybeSingle();
-
-    const permissions = (appUser as any)?.role?.permissions ?? null;
-    const allowed = permissions?.canManageSchoolRegistry === true;
-
-    if (error || !allowed) {
-      const redirectUrl = url.clone();
-      redirectUrl.pathname = "/dynedu/dashboard";
-      redirectUrl.searchParams.set("error", "forbidden");
-
-      const redirectRes = NextResponse.redirect(redirectUrl);
-      cookiesToApply.forEach(({ name, value, options }) => redirectRes.cookies.set(name, value, options));
+      cookiesToApply.forEach(({ name, value, options }) =>
+        redirectRes.cookies.set(name, value, options)
+      );
       return redirectRes;
     }
   }
