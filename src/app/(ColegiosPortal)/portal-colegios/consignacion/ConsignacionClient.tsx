@@ -100,19 +100,25 @@ const glassCardSx = {
 
 const tableGlassSx = {
   "& .MuiTableCell-head": {
-    color: "rgba(255,255,255,0.85)",
+    color: "rgba(255,255,255,0.86)",
     borderColor: "rgba(255,255,255,0.14)",
     fontWeight: 900,
+    backgroundColor: "rgba(0,0,0,0.18)",
   },
   "& .MuiTableCell-body": {
     color: "rgba(255,255,255,0.92)",
     borderColor: "rgba(255,255,255,0.10)",
   },
+
+  // Base row (más oscuro)
   "& .MuiTableRow-root": {
-    backgroundColor: "rgba(0,0,0,0.10)",
+    backgroundColor: "rgba(0,0,0,0.16)",
+    transition: "background-color 140ms ease",
   },
+
+  // Hover (ya NO blanco fuerte)
   "& .MuiTableRow-root:hover": {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(136,135,232,0.12) !important", // tinte púrpura
   },
 };
 
@@ -133,6 +139,30 @@ const darkFieldSx = {
   },
   "& .MuiSvgIcon-root": {
     color: "rgba(255,255,255,0.75)",
+  },
+};
+
+const dialogGlassSx = {
+  "& .MuiPaper-root": {
+    borderRadius: 3,
+    backgroundColor: "rgba(11,18,32,0.92)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    backdropFilter: "blur(16px)",
+    color: "rgba(255,255,255,0.92)",
+    boxShadow: "0 22px 70px rgba(0,0,0,0.55)",
+  },
+  "& .MuiDialogTitle-root": {
+    color: "rgba(255,255,255,0.94)",
+    fontWeight: 900,
+  },
+  "& .MuiDialogContent-root": {
+    color: "rgba(255,255,255,0.90)",
+  },
+  "& .MuiDialogContent-dividers": {
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  "& .MuiDialogActions-root": {
+    borderTop: "1px solid rgba(255,255,255,0.10)",
   },
 };
 
@@ -255,8 +285,6 @@ const ConsignacionClient: React.FC<Props> = ({
         setMessage("Solicitud enviada. Estado: PENDIENTE DE APROBACIÓN.");
         setRows([{ productoId: "", cantidad: "" }]);
         setObservaciones("");
-
-        // refresca server data para que se actualice la tabla
         router.refresh();
       }
     } catch (err) {
@@ -606,6 +634,7 @@ const ConsignacionClient: React.FC<Props> = ({
         onClose={() => setSelected(null)}
         maxWidth="md"
         fullWidth
+        sx={dialogGlassSx}
       >
         <DialogTitle>Detalle de consignación</DialogTitle>
 
@@ -617,7 +646,6 @@ const ConsignacionClient: React.FC<Props> = ({
                   Código: <strong>{selected.codigo}</strong>
                 </Typography>
 
-                {/* ✅ FIX: no Chip dentro de Typography (p) */}
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography variant="body2" component="span">
                     Estado:
