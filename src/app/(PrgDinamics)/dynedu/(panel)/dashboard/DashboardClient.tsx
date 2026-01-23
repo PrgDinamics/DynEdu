@@ -93,11 +93,11 @@ export default function DashboardClient({ initialData }: Props) {
 
   const dailyChart = useMemo(() => {
     // Show short label in X axis
-    return data.dailySales30d.map((p) => ({
+    return data.dailySalesCampaign.map((p) => ({
       ...p,
       day: p.date.slice(5),
     }));
-  }, [data.dailySales30d]);
+  }, [data.dailySalesCampaign]);
 
   const statusChart = useMemo(
     () => data.consignacionesByStatus.map((s) => ({ name: s.status, value: s.count })),
@@ -110,6 +110,11 @@ export default function DashboardClient({ initialData }: Props) {
         <Box>
           <Typography variant="subtitle1" fontWeight={700}>
             Ventas (estimadas)
+          </Typography>
+          <Typography variant="caption" color={data.meta.activeCampaign ? "text.secondary" : "warning.main"}>
+            {data.meta.activeCampaign
+              ? `Campaña activa: ${data.meta.activeCampaign.name} — ${data.meta.rangeLabel}`
+              : "No hay campaña activa."}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             {data.meta.note}
@@ -125,17 +130,17 @@ export default function DashboardClient({ initialData }: Props) {
       {/* Sales KPIs */}
       <Grid container spacing={2} mb={2}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard label="Ventas del mes" value={formatCurrency(data.kpis.monthSales)} />
+          <StatCard label="Ventas (campaña)" value={formatCurrency(data.kpis.campaignSales)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard label="Unidades vendidas (mes)" value={formatNumber(data.kpis.monthUnits)} />
+          <StatCard label="Unidades (campaña)" value={formatNumber(data.kpis.campaignUnits)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard label="Ticket promedio" value={formatCurrency(data.kpis.avgTicket)} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
-            label="Top cliente (mes)"
+            label="Top cliente (campaña)"
             value={data.kpis.topClientName || "—"}
             helper={data.kpis.topClientSales ? formatCurrency(data.kpis.topClientSales) : undefined}
           />
@@ -148,7 +153,7 @@ export default function DashboardClient({ initialData }: Props) {
           <Card variant="outlined" sx={{ height: 360 }}>
             <CardContent sx={{ height: "100%" }}>
               <Typography variant="subtitle1" fontWeight={700} mb={1}>
-                Ventas por día (últimos 30 días)
+                Ventas por día (campaña)
               </Typography>
               <Box sx={{ width: "100%", height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -203,10 +208,10 @@ export default function DashboardClient({ initialData }: Props) {
           <Card variant="outlined">
             <CardContent>
               <Typography variant="subtitle1" fontWeight={700} mb={1}>
-                Top 5 libros vendidos (mes)
+                Top 5 libros vendidos (campaña)
               </Typography>
 
-              {data.topProductsMonth.length === 0 ? (
+              {data.topProductsCampaign.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   No hay ventas registradas en el período.
                 </Typography>
@@ -220,7 +225,7 @@ export default function DashboardClient({ initialData }: Props) {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {data.topProductsMonth.map((r) => (
+                    {data.topProductsCampaign.map((r) => (
                       <TableRow key={r.label}>
                         <TableCell>{r.label}</TableCell>
                         <TableCell align="right">{formatNumber(r.units)}</TableCell>

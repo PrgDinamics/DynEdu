@@ -373,18 +373,23 @@
 
 .nav-user-menu {
   position: absolute;
-  top: calc(100% + 10px);
-  left: 0;              /* queda alineado debajo del pill */
-  min-width: 240px;
+  top: calc(100% + 12px);
+  left: 0;
+  min-width: 260px;
+
   border-radius: 16px;
-  padding: 10px;
+  padding: 12px;
   z-index: 9999;
 
   background: rgba(10, 10, 16, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(10px);
+
+  display: grid;      /* ✅ clave */
+  gap: 10px;          /* ✅ espacio entre items */
 }
+
 
 .nav-user-menu::before {
   content: "";
@@ -404,7 +409,7 @@
   align-items: center;
   gap: 10px;
 
-  padding: 10px 10px;
+  padding: 12px 12px;       /* antes 10px */
   border-radius: 12px;
   text-decoration: none;
   color: rgba(255, 255, 255, 0.92);
@@ -416,19 +421,20 @@
   transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
+
 .nav-user-menu-item:hover {
   transform: translateY(-1px);
   opacity: 0.95;
 }
 
 .nav-user-menu-logout {
-  margin-top: 8px;
+  margin-top: 4px;          /* antes 8px */
   width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
 
-  padding: 10px 10px;
+  padding: 12px 12px;       /* antes 10px */
   border-radius: 12px;
   cursor: pointer;
 
@@ -438,6 +444,7 @@
   background: rgba(255, 193, 7, 0.10);
   border: 1px solid rgba(255, 193, 7, 0.22);
 }
+
 
 
 /* On mobile, usually hide links and keep burger right */

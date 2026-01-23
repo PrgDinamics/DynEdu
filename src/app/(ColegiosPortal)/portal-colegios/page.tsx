@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import PortalColegiosLogin from "./PortalColegiosLogin/PortalColegiosLogin";
 import { getPortalColegio } from "./actions";
 export const metadata = {
-  title: "Portal de colegios | DynEdu",
+  title: "Portal de Colegios | DynEdu",
   description: "Acceso para registrar consignaciones por campaña.",
 };
 

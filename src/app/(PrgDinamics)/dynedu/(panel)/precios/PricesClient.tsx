@@ -10,7 +10,6 @@ import {
   TableCell,
   TableBody,
   TextField,
-  Button,
   Tabs,
   Tab,
   Dialog,
@@ -22,6 +21,7 @@ import {
   IconButton,
   Stack,
   TablePagination,
+  Button,
 } from "@mui/material";
 
 import { useState, useTransition } from "react";
@@ -67,6 +67,13 @@ type Props = {
   listaInfo: ListaInfo;
   initialProductos: ProductoConPrecio[];
   initialPacks: PackConPrecio[];
+};
+
+type InfoDialogState = {
+  open: boolean;
+  title: string;
+  message: string;
+  kind: "info" | "success" | "warning" | "error";
 };
 
 export default function PricesClient({
@@ -147,9 +154,7 @@ export default function PricesClient({
     data: packs,
     rowsPerPage: 10,
     sortFn: (a, b) =>
-      (a.internal_id ?? a.nombre).localeCompare(
-        b.internal_id ?? b.nombre
-      ),
+      (a.internal_id ?? a.nombre).localeCompare(b.internal_id ?? b.nombre),
     filterFn: (p, q) =>
       (p.internal_id ?? "").toLowerCase().includes(q) ||
       (p.nombre ?? "").toLowerCase().includes(q) ||
@@ -161,9 +166,11 @@ export default function PricesClient({
   // -----------------------------
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
-  const [modalAction, setModalAction] = useState<(() => void) | null>(null);
+  const [modalAction, setModalAction] = useState<
+    (() => void | Promise<void>) | null
+  >(null);
 
-  const abrirModal = (msg: string, action: () => void) => {
+  const abrirModal = (msg: string, action: () => void | Promise<void>) => {
     setModalMessage(msg);
     setModalAction(() => action);
     setModalOpen(true);
@@ -175,10 +182,45 @@ export default function PricesClient({
     setModalAction(null);
   };
 
-  const confirmarModal = () => {
-    if (modalAction) modalAction();
-    cerrarModal();
+  const confirmarModal = async () => {
+    try {
+      if (modalAction) await modalAction();
+    } finally {
+      cerrarModal();
+    }
   };
+
+  // -----------------------------
+  // MODAL INFO (reemplaza alert)
+  // -----------------------------
+  const [infoDialog, setInfoDialog] = useState<InfoDialogState>({
+    open: false,
+    title: "Aviso",
+    message: "",
+    kind: "info",
+  });
+
+  const openInfo = (
+    message: string,
+    kind: InfoDialogState["kind"] = "info",
+    title?: string
+  ) => {
+    const titles: Record<InfoDialogState["kind"], string> = {
+      info: "Aviso",
+      success: "Listo",
+      warning: "Atención",
+      error: "Error",
+    };
+
+    setInfoDialog({
+      open: true,
+      title: title ?? titles[kind],
+      message,
+      kind,
+    });
+  };
+
+  const closeInfo = () => setInfoDialog((p) => ({ ...p, open: false }));
 
   const monedaLabel = listaInfo.moneda ?? "PEN";
 
@@ -195,8 +237,9 @@ export default function PricesClient({
   const guardarPrecioProducto = async (productoId: number) => {
     const raw = preciosProductos[productoId] ?? "";
     const precio = Number(raw.replace(",", "."));
-    if (isNaN(precio) || precio < 0) {
-      alert("Ingresa un precio válido.");
+
+    if (Number.isNaN(precio) || precio < 0) {
+      openInfo("Ingresa un precio válido.", "warning");
       return;
     }
 
@@ -209,23 +252,28 @@ export default function PricesClient({
 
     abrirModal(texto, async () => {
       startTransition(async () => {
-        await upsertPrecioProducto(priceListId, productoId, precio);
+        try {
+          await upsertPrecioProducto(priceListId, productoId, precio);
 
-        setProductos((prev) =>
-          prev.map((p) =>
-            p.producto_id === productoId ? { ...p, precio } : p
-          )
-        );
+          setProductos((prev) =>
+            prev.map((p) =>
+              p.producto_id === productoId ? { ...p, precio } : p
+            )
+          );
 
-        setEditandoProductos((prev) => ({
-          ...prev,
-          [productoId]: false,
-        }));
+          setEditandoProductos((prev) => ({
+            ...prev,
+            [productoId]: false,
+          }));
+        } catch (e) {
+          console.error("[PricesClient] upsertPrecioProducto error", e);
+          openInfo("No se pudo guardar el precio del producto.", "error");
+        }
       });
     });
   };
 
-  const toggleEditarProducto = (productoId: number, hasPrecio: boolean) => {
+  const toggleEditarProducto = (productoId: number) => {
     setEditandoProductos((prev) => ({
       ...prev,
       [productoId]: !prev[productoId],
@@ -245,8 +293,9 @@ export default function PricesClient({
   const guardarPrecioPack = async (packId: number) => {
     const raw = preciosPacks[packId] ?? "";
     const precio = Number(raw.replace(",", "."));
-    if (isNaN(precio) || precio < 0) {
-      alert("Ingresa un precio válido.");
+
+    if (Number.isNaN(precio) || precio < 0) {
+      openInfo("Ingresa un precio válido.", "warning");
       return;
     }
 
@@ -260,21 +309,26 @@ export default function PricesClient({
 
     abrirModal(texto, async () => {
       startTransition(async () => {
-        await upsertPrecioPack(priceListId, packId, precio);
+        try {
+          await upsertPrecioPack(priceListId, packId, precio);
 
-        setPacks((prev) =>
-          prev.map((p) => (p.pack_id === packId ? { ...p, precio } : p))
-        );
+          setPacks((prev) =>
+            prev.map((p) => (p.pack_id === packId ? { ...p, precio } : p))
+          );
 
-        setEditandoPacks((prev) => ({
-          ...prev,
-          [packId]: false,
-        }));
+          setEditandoPacks((prev) => ({
+            ...prev,
+            [packId]: false,
+          }));
+        } catch (e) {
+          console.error("[PricesClient] upsertPrecioPack error", e);
+          openInfo("No se pudo guardar el precio del pack.", "error");
+        }
       });
     });
   };
 
-  const toggleEditarPack = (packId: number, hasPrecio: boolean) => {
+  const toggleEditarPack = (packId: number) => {
     setEditandoPacks((prev) => ({
       ...prev,
       [packId]: !prev[packId],
@@ -342,12 +396,9 @@ export default function PricesClient({
                     type="number"
                     value={preciosProductos[p.producto_id] ?? ""}
                     onChange={(e) =>
-                      handleChangePrecioProducto(
-                        p.producto_id,
-                        e.target.value
-                      )
+                      handleChangePrecioProducto(p.producto_id, e.target.value)
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isPending}
                   />
                 </TableCell>
 
@@ -355,18 +406,25 @@ export default function PricesClient({
                   <Tooltip
                     title={isEditing ? "Guardar precio" : "Editar precio"}
                   >
-                    <IconButton
-                      sx={{ color: "warning.main" }}
-                      onClick={() => {
-                        if (isEditing) {
-                          guardarPrecioProducto(p.producto_id);
-                        } else {
-                          toggleEditarProducto(p.producto_id, hasPrecio);
-                        }
-                      }}
-                    >
-                      {isEditing ? <SaveOutlinedIcon /> : <IconEdit size={18} />}
-                    </IconButton>
+                    <span>
+                      <IconButton
+                        sx={{ color: "warning.main" }}
+                        disabled={isPending}
+                        onClick={() => {
+                          if (isEditing) {
+                            guardarPrecioProducto(p.producto_id);
+                          } else {
+                            toggleEditarProducto(p.producto_id);
+                          }
+                        }}
+                      >
+                        {isEditing ? (
+                          <SaveOutlinedIcon />
+                        ) : (
+                          <IconEdit size={18} />
+                        )}
+                      </IconButton>
+                    </span>
                   </Tooltip>
                 </TableCell>
               </TableRow>
@@ -476,26 +534,31 @@ export default function PricesClient({
                     onChange={(e) =>
                       handleChangePrecioPack(p.pack_id, e.target.value)
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isPending}
                   />
                 </TableCell>
 
                 <TableCell align="center">
-                  <Tooltip
-                    title={isEditing ? "Guardar precio" : "Editar precio"}
-                  >
-                    <IconButton
-                      sx={{ color: "warning.main" }}
-                      onClick={() => {
-                        if (isEditing) {
-                          guardarPrecioPack(p.pack_id);
-                        } else {
-                          toggleEditarPack(p.pack_id, hasPrecio);
-                        }
-                      }}
-                    >
-                      {isEditing ? <SaveOutlinedIcon /> : <IconEdit size={18} />}
-                    </IconButton>
+                  <Tooltip title={isEditing ? "Guardar precio" : "Editar precio"}>
+                    <span>
+                      <IconButton
+                        sx={{ color: "warning.main" }}
+                        disabled={isPending}
+                        onClick={() => {
+                          if (isEditing) {
+                            guardarPrecioPack(p.pack_id);
+                          } else {
+                            toggleEditarPack(p.pack_id);
+                          }
+                        }}
+                      >
+                        {isEditing ? (
+                          <SaveOutlinedIcon />
+                        ) : (
+                          <IconEdit size={18} />
+                        )}
+                      </IconButton>
+                    </span>
                   </Tooltip>
                 </TableCell>
               </TableRow>
@@ -556,7 +619,7 @@ export default function PricesClient({
       {tab === "productos" && renderTablaProductos()}
       {tab === "packs" && renderTablaPacks()}
 
-      {/* MODAL */}
+      {/* MODAL CONFIRMACIÓN */}
       <Dialog open={modalOpen} onClose={cerrarModal}>
         <DialogTitle>Confirmar actualización</DialogTitle>
 
@@ -566,12 +629,21 @@ export default function PricesClient({
 
         <DialogActions>
           <Button onClick={cerrarModal}>Cancelar</Button>
-          <Button
-            onClick={confirmarModal}
-            color="success"
-            variant="contained"
-          >
+          <Button onClick={confirmarModal} color="success" variant="contained">
             Aceptar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ MODAL INFO (reemplaza alert) */}
+      <Dialog open={infoDialog.open} onClose={closeInfo} maxWidth="xs" fullWidth>
+        <DialogTitle>{infoDialog.title}</DialogTitle>
+        <DialogContent>
+          <Typography>{infoDialog.message}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeInfo} autoFocus variant="contained">
+            OK
           </Button>
         </DialogActions>
       </Dialog>

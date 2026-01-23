@@ -24,7 +24,6 @@ import {
   IconButton,
   Divider,
   Tooltip,
-  InputAdornment,
   TablePagination,
   Dialog,
   DialogTitle,
@@ -32,7 +31,6 @@ import {
   DialogActions,
   Chip,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
 import { IconPlus, IconEdit, IconTrash, IconEye } from "@tabler/icons-react";
 
 import type {
@@ -81,6 +79,13 @@ type ExtraContactForm = {
   correo: string;
 };
 
+type InfoDialogState = {
+  open: boolean;
+  title: string;
+  message: string;
+  kind: "info" | "success" | "warning" | "error";
+};
+
 const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
   const [proveedores, setProveedores] = useState<Proveedor[]>(initialRows || []);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -104,6 +109,36 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
   );
 
   const [extraContacts, setExtraContacts] = useState<ExtraContactForm[]>([]);
+
+  // ✅ Modal de mensajes (reemplaza alert)
+  const [infoDialog, setInfoDialog] = useState<InfoDialogState>({
+    open: false,
+    title: "Aviso",
+    message: "",
+    kind: "info",
+  });
+
+  const openInfo = (
+    message: string,
+    kind: InfoDialogState["kind"] = "info",
+    title?: string
+  ) => {
+    const titles: Record<InfoDialogState["kind"], string> = {
+      info: "Aviso",
+      success: "Listo",
+      warning: "Atención",
+      error: "Error",
+    };
+
+    setInfoDialog({
+      open: true,
+      title: title ?? titles[kind],
+      message,
+      kind,
+    });
+  };
+
+  const closeInfo = () => setInfoDialog((p) => ({ ...p, open: false }));
 
   useEffect(() => {
     setProveedores(initialRows || []);
@@ -185,7 +220,7 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
     e.preventDefault();
 
     if (!form.razon_social.trim() || !form.ruc.trim()) {
-      alert("Razón social y RUC son obligatorios.");
+      openInfo("Razón social y RUC son obligatorios.", "warning");
       return;
     }
 
@@ -202,8 +237,7 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
               ? null
               : form.nombre_comercial.trim(),
           ruc: form.ruc.trim(),
-          direccion:
-            form.direccion.trim() === "" ? null : form.direccion.trim(),
+          direccion: form.direccion.trim() === "" ? null : form.direccion.trim(),
           referencia:
             form.referencia.trim() === "" ? null : form.referencia.trim(),
           contacto_nombre: form.contacto_nombre.trim(),
@@ -225,6 +259,9 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
             setProveedores((prev) =>
               prev.map((p) => (p.id === updated.id ? updated : p))
             );
+            openInfo("Proveedor actualizado correctamente.", "success");
+          } else {
+            openInfo("No se pudo actualizar el proveedor.", "error");
           }
         } else {
           const created = await createProveedor({
@@ -233,11 +270,14 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
           });
           if (created) {
             setProveedores((prev) => [created, ...prev]);
+            openInfo("Proveedor registrado correctamente.", "success");
+          } else {
+            openInfo("No se pudo registrar el proveedor.", "error");
           }
         }
       } catch (err) {
         console.error("[SuppliersClient] error al guardar proveedor", err);
-        alert("Ocurrió un error al guardar el proveedor.");
+        openInfo("Ocurrió un error al guardar el proveedor.", "error");
       } finally {
         setLoading(false);
         resetForm();
@@ -295,7 +335,6 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
     }
   };
 
-  // AHORA ELIMINAMOS CON MODAL, SIN window.confirm
   const handleDelete = (prov: Proveedor) => {
     const resumen = `${prov.internal_id} - ${prov.razon_social}`;
 
@@ -306,10 +345,13 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
         if (success) {
           setProveedores((prev) => prev.filter((p) => p.id !== prov.id));
           if (editingId === prov.id) resetForm();
+          openInfo("Proveedor eliminado correctamente.", "success");
+        } else {
+          openInfo("No se pudo eliminar el proveedor.", "error");
         }
       } catch (err) {
         console.error("[SuppliersClient] error al eliminar proveedor", err);
-        alert("No se pudo eliminar el proveedor.");
+        openInfo("No se pudo eliminar el proveedor.", "error");
       } finally {
         setLoading(false);
       }
@@ -330,9 +372,7 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
 
     try {
       const contactos = await getProveedorContactos(prov.id);
-      setDetailContacts(
-        (contactos || []).filter((c) => !c.es_principal) // solo adicionales
-      );
+      setDetailContacts((contactos || []).filter((c) => !c.es_principal));
     } catch (err) {
       console.error("[SuppliersClient] error al cargar contactos detalle", err);
       setDetailContacts([]);
@@ -621,11 +661,11 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
             <TextField
               size="small"
               label="Buscar"
-              placeholder="Código, descripción, editorial, usuario..."
+              placeholder="Código, razón social, RUC, contacto..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               sx={{ maxWidth: 360 }}
-            />        
+            />
           }
         />
         <CardContent>
@@ -668,11 +708,7 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
                     <TableCell>{p.contacto_celular}</TableCell>
                     <TableCell>{p.contacto_correo ?? ""}</TableCell>
                     <TableCell align="center">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="center"
-                      >
+                      <Stack direction="row" spacing={0.5} justifyContent="center">
                         <Tooltip title="Ver detalles">
                           <IconButton
                             size="small"
@@ -716,9 +752,7 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             labelRowsPerPage="Filas por página"
-            labelDisplayedRows={({ from, to, count }) =>
-              `${from}-${to} de ${count}`
-            }
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
           />
         </CardContent>
       </Card>
@@ -766,19 +800,16 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
 
               <Stack spacing={1}>
                 <Typography variant="body2">
-                  <strong>Nombre comercial:</strong>{" "}
-                  {detailProveedor.nombre_comercial ?? ""}
+                  <strong>Nombre comercial:</strong> {detailProveedor.nombre_comercial ?? ""}
                 </Typography>
                 <Typography variant="body2">
                   <strong>RUC:</strong> {detailProveedor.ruc}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Dirección:</strong>{" "}
-                  {detailProveedor.direccion ?? ""}
+                  <strong>Dirección:</strong> {detailProveedor.direccion ?? ""}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Referencia:</strong>{" "}
-                  {detailProveedor.referencia ?? ""}
+                  <strong>Referencia:</strong> {detailProveedor.referencia ?? ""}
                 </Typography>
               </Stack>
 
@@ -789,16 +820,13 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
                   Contacto principal
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Nombre:</strong>{" "}
-                  {detailProveedor.contacto_nombre || ""}
+                  <strong>Nombre:</strong> {detailProveedor.contacto_nombre || ""}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Celular:</strong>{" "}
-                  {detailProveedor.contacto_celular || ""}
+                  <strong>Celular:</strong> {detailProveedor.contacto_celular || ""}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Correo:</strong>{" "}
-                  {detailProveedor.contacto_correo ?? ""}
+                  <strong>Correo:</strong> {detailProveedor.contacto_correo ?? ""}
                 </Typography>
               </Stack>
 
@@ -837,12 +865,10 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
                   Resumen de pedidos
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Total pedidos:</strong>{" "}
-                  {detailProveedor.total_pedidos ?? 0}
+                  <strong>Total pedidos:</strong> {detailProveedor.total_pedidos ?? 0}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Total unidades:</strong>{" "}
-                  {detailProveedor.total_unidades ?? 0}
+                  <strong>Total unidades:</strong> {detailProveedor.total_unidades ?? 0}
                 </Typography>
               </Stack>
             </Stack>
@@ -850,6 +876,19 @@ const SuppliersClient: React.FC<SuppliersClientProps> = ({ initialRows }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDetail}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ MODAL INFO (reemplaza alert) */}
+      <Dialog open={infoDialog.open} onClose={closeInfo} maxWidth="xs" fullWidth>
+        <DialogTitle>{infoDialog.title}</DialogTitle>
+        <DialogContent>
+          <Typography>{infoDialog.message}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeInfo} autoFocus variant="contained">
+            OK
+          </Button>
         </DialogActions>
       </Dialog>
     </>

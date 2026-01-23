@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseClient";
 
 export const metadata = {
   title: "Intranet DynEdu",
-  description: "Acceso al panel de campaña académica.",
+  description: "Acceso al panel corporativo.",
 };
 
 export default async function Page() {

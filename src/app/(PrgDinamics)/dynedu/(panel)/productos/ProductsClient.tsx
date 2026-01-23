@@ -738,13 +738,6 @@ export default function ProductsClient({ initialProductos }: Props) {
               value={busquedaGlobal}
               onChange={(e) => setBusquedaGlobal(e.target.value)}
               sx={{ maxWidth: 360 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
             />
           </Stack>
 

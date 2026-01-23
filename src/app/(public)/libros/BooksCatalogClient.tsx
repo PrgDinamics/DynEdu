@@ -13,7 +13,6 @@ import {
   getCart,
 } from "@/lib/store/cart";
 
-// ✅ Ajusta la ruta si tu modal está en otro lado
 import AuthRequiredModal from "../modals/AuthRequiredModal";
 
 type BookRow = {
@@ -27,12 +26,13 @@ type BookRow = {
 };
 
 type BookView = BookRow & {
-  price: number; // computed from price_list_items
+  price: number;
+  available: number; // ✅ now comes from VIEW
 };
 
 const PAGE_SIZE = 9;
 
-// ---- Pricing helpers (based on your DB schema) ----
+// ---- Pricing helpers ----
 async function getDefaultPriceListId(supabase: any): Promise<number | null> {
   const { data: preferred, error: e1 } = await supabase
     .from("price_lists")
@@ -81,8 +81,33 @@ async function getPricesMap(
   return map;
 }
 
+// ---- Stock helpers (VIEW) ----
+async function getStockAvailableMap(
+  supabase: any,
+  productIds: number[]
+): Promise<Map<number, number>> {
+  const map = new Map<number, number>();
+  if (productIds.length === 0) return map;
+
+  // ✅ read computed available from view
+  const { data, error } = await supabase
+    .from("stock_actual_view")
+    .select("producto_id,available")
+    .in("producto_id", productIds);
+
+  if (error) {
+    console.error("[stock] stock_actual_view error:", error);
+    return map;
+  }
+
+  (data ?? []).forEach((row: any) => {
+    map.set(Number(row.producto_id), Number(row.available ?? 0));
+  });
+
+  return map;
+}
+
 export default function BooksCatalogClient() {
-  // ✅ Unified client (same across app)
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [books, setBooks] = useState<BookView[]>([]);
@@ -96,17 +121,12 @@ export default function BooksCatalogClient() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Auth source of truth = getUser (NO getSession)
   const [userReady, setUserReady] = useState(false);
   const [hasUser, setHasUser] = useState(false);
 
-  // Auth modal gate
   const [authModalOpen, setAuthModalOpen] = useState(false);
-
-  // Cart badge
   const [cartCount, setCartCount] = useState(0);
 
-  // --- Auth tracking (robust) ---
   useEffect(() => {
     let alive = true;
 
@@ -135,7 +155,6 @@ export default function BooksCatalogClient() {
     };
   }, [supabase]);
 
-  // --- Cart count (only if logged in) ---
   const refreshCartCount = () => {
     const items = getCart();
     const total = items.reduce((acc: number, it: any) => acc + (it.quantity ?? 0), 0);
@@ -166,12 +185,10 @@ export default function BooksCatalogClient() {
     };
   }, [userReady, hasUser]);
 
-  // Close modal automatically when user becomes logged in
   useEffect(() => {
     if (userReady && hasUser) setAuthModalOpen(false);
   }, [userReady, hasUser]);
 
-  // --- Filters options ---
   const editoriales = useMemo(() => {
     const set = new Set<string>();
     books.forEach((b) => {
@@ -191,7 +208,6 @@ export default function BooksCatalogClient() {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / PAGE_SIZE)), [totalCount]);
 
-  // --- Fetch public catalog + pricing ---
   const fetchBooks = async () => {
     setLoading(true);
     setError(null);
@@ -226,13 +242,20 @@ export default function BooksCatalogClient() {
       const rows = (data ?? []) as BookRow[];
       setTotalCount(count || 0);
 
-      const priceListId = await getDefaultPriceListId(supabase);
       const ids = rows.map((r) => Number(r.id));
-      const pricesMap = priceListId ? await getPricesMap(supabase, priceListId, ids) : new Map();
+
+      const priceListId = await getDefaultPriceListId(supabase);
+      const pricesMap = priceListId
+        ? await getPricesMap(supabase, priceListId, ids)
+        : new Map<number, number>();
+
+      // ✅ stock from view
+      const stockMap = await getStockAvailableMap(supabase, ids);
 
       const view: BookView[] = rows.map((r) => ({
         ...r,
         price: pricesMap.get(Number(r.id)) ?? 0,
+        available: stockMap.get(Number(r.id)) ?? 0,
       }));
 
       setBooks(view);
@@ -250,7 +273,6 @@ export default function BooksCatalogClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, editorial, year, page]);
 
-  // ✅ Limpiar filtros + vaciar carrito (como pediste)
   const resetFiltersAndCart = () => {
     setQ("");
     setEditorial("Todas");
@@ -258,9 +280,6 @@ export default function BooksCatalogClient() {
     setPage(1);
     clearCart();
   };
-  
-
-
 
   const handleAddToCart = async (book: BookView) => {
     if (!userReady) return;
@@ -269,6 +288,8 @@ export default function BooksCatalogClient() {
       setAuthModalOpen(true);
       return;
     }
+
+    if ((book.available ?? 0) <= 0) return;
 
     addToCart(book.id, 1);
   };
@@ -367,41 +388,54 @@ export default function BooksCatalogClient() {
                 </div>
               </div>
             ))
-          : books.map((b) => (
-              <div key={b.id} className="catalog-card">
-                <div className="catalog-cover">
-                  <img
-                    src={b.foto_url || "/images/placeholders/book-cover.png"}
-                    alt={b.descripcion}
-                    loading="lazy"
-                  />
-                </div>
+          : books.map((b) => {
+              const available = Number(b.available ?? 0);
+              const out = available <= 0;
 
-                <div className="catalog-body">
-                  <div className="catalog-title">{b.descripcion}</div>
-
-                  <div className="catalog-chips">
-                    {b.editorial && <span className="chip">{b.editorial}</span>}
-                    {b.anio_publicacion && (
-                      <span className="chip chip-soft">{b.anio_publicacion}</span>
-                    )}
-                    {b.codigo_venta && <span className="chip chip-soft">{b.codigo_venta}</span>}
+              return (
+                <div key={b.id} className="catalog-card">
+                  <div className="catalog-cover">
+                    <img
+                      src={b.foto_url || "/images/placeholders/book-cover.png"}
+                      alt={b.descripcion}
+                      loading="lazy"
+                    />
                   </div>
 
-                  <div className="catalog-price">S/ {Number(b.price ?? 0).toFixed(2)}</div>
+                  <div className="catalog-body">
+                    <div className="catalog-title">{b.descripcion}</div>
 
-                  <div className="catalog-actions">
-                    <button className="btn btn-primary" onClick={() => handleAddToCart(b)} type="button">
-                      + Agregar
-                    </button>
+                    <div className="catalog-chips">
+                      {b.editorial && <span className="chip">{b.editorial}</span>}
+                      {b.anio_publicacion && <span className="chip chip-soft">{b.anio_publicacion}</span>}
+                      {b.codigo_venta && <span className="chip chip-soft">{b.codigo_venta}</span>}
 
-                    <a className="btn btn-ghost" href={`/libros/${b.id}`}>
-                      Ver
-                    </a>
+                      <span className={`chip chip-soft ${out ? "chip-out" : "chip-available"}`}>
+                        {out ? "Agotado" : `Disponible: ${available}`}
+                      </span>
+                    </div>
+
+                    <div className="catalog-price">S/ {Number(b.price ?? 0).toFixed(2)}</div>
+
+                    <div className="catalog-actions">
+                      <button
+                        className={`btn btn-primary ${out ? "btn-disabled" : ""}`}
+                        onClick={() => handleAddToCart(b)}
+                        type="button"
+                        disabled={out}
+                        title={out ? "Sin stock disponible" : "Agregar al carrito"}
+                      >
+                        + Agregar
+                      </button>
+
+                      <a className="btn btn-ghost" href={`/libros/${b.id}`}>
+                        Ver
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
       </div>
 
       {totalPages > 1 && (

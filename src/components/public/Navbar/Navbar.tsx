@@ -12,6 +12,7 @@ import {
   X,
   ChevronRight,
   User,
+  Package,
 } from "lucide-react";
 import "./Navbar.css";
 
@@ -173,39 +174,46 @@ export default function Navbar() {
               </Link>
             ) : (
               <div className="nav-user" ref={userMenuRef}>
-                  <button
-                    type="button"
-                    className="nav-user-pill"
-                    title={email}
-                    onClick={() => setUserMenuOpen((v) => !v)}
-                  >
-                    <UserRound size={18} />
-                    <span>Bienvenido, {label}</span>
-                  </button>
+                <button
+                  type="button"
+                  className="nav-user-pill"
+                  title={email}
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                >
+                  <UserRound size={18} />
+                  <span>Bienvenido, {label}</span>
+                </button>
 
-                  {userMenuOpen && (
-                    <div className="nav-user-menu">
-                      <Link
-                        href="/perfil"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="nav-user-menu-item"
-                      >
-                        <User size={16} />
-                        <span>Perfil</span>
-                      </Link>
+                {userMenuOpen && (
+                  <div className="nav-user-menu">
+                    <Link
+                      href="/perfil"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="nav-user-menu-item"
+                    >
+                      <User size={16} />
+                      <span>Perfil</span>
+                    </Link>
 
-                      <button
-                        type="button"
-                        onClick={onLogout}
-                        className="nav-user-menu-logout"
-                      >
-                        <LogOut size={16} />
-                        <span>Cerrar sesión</span>
-                      </button>
-                    </div>
-                  )}
-                {/* logout icon (lo dejas como estaba) */}
+                    <Link
+                      href="/mis-compras"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="nav-user-menu-item"
+                    >
+                      <Package size={16} />
+                      <span>Mis compras</span>
+                    </Link>
 
+                    <button
+                      type="button"
+                      onClick={onLogout}
+                      className="nav-user-menu-logout"
+                    >
+                      <LogOut size={16} />
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -273,10 +281,14 @@ export default function Navbar() {
                   <span>Bienvenido, {label}</span>
                 </div>
 
-                {/* ✅ Perfil también en mobile */}
                 <Link className="nav-mobile-auth" href="/perfil">
                   <User size={18} />
                   <span>Perfil</span>
+                </Link>
+
+                <Link className="nav-mobile-auth" href="/mis-compras">
+                  <Package size={18} />
+                  <span>Mis compras</span>
                 </Link>
 
                 <button className="nav-mobile-logout" onClick={onLogout} type="button">

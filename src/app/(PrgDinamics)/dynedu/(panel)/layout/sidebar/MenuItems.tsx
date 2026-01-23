@@ -15,6 +15,8 @@ import {
   IconAdjustmentsHorizontal,
   IconSchool,
   IconActivity,
+  IconShoppingCart,
+  IconBook
 } from "@tabler/icons-react";
 import { uniqueId } from "lodash";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
@@ -41,7 +43,7 @@ const Menuitems = [
   {
     id: uniqueId(),
     title: "Productos",
-    icon: IconPackage,
+    icon: IconBook,
     href: "/dynedu/productos",
     permissionKey: "canViewProducts",
   },
@@ -105,23 +107,32 @@ const Menuitems = [
     href: "/dynedu/consignaciones",
     permissionKey: "canViewConsignations",
   },
+
+   {
+    id: uniqueId(),
+    title: "Entregas",
+    icon: IconShoppingCart,
+    href: "/dynedu/entregas",
+    permissionKey: "canViewOrders",
+  },
+  
   
 
-  { navlabel: true, subheader: "ALMACÉN" },
-  {
-    id: uniqueId(),
-    title: "Kardex",
-    icon: IconBuildingWarehouse,
-    href: "/almacen/kardex",
-    permissionKey: "canViewKardex",
-  },
+  // { navlabel: true, subheader: "ALMACÉN" },
+  // {
+  //   id: uniqueId(),
+  //   title: "Kardex",
+  //   icon: IconBuildingWarehouse,
+  //   href: "/almacen/kardex",
+  //   permissionKey: "canViewKardex",
+  // },
 
   { navlabel: true, subheader: "REPORTES" },
   {
     id: uniqueId(),
-    title: "Ventas y cobranzas",
+    title: "Ventas",
     icon: IconReportMoney,
-    href: "/reportes/ventas",
+    href: "/dynedu/reportes/ventas",
     permissionKey: "canViewSalesCollections",
   },
 
@@ -139,20 +150,6 @@ const Menuitems = [
     icon: IconUsers,
     href: "/dynedu/settings/usuario-roles",
     permissionAnyOf: ["canManageUsers", "canManageRoles"],
-  },
-  {
-    id: uniqueId(),
-    title: "Integraciones",
-    icon: IconPlugConnected,
-    href: "/dynedu/settings/integraciones",
-    permissionKey: "canManageIntegrations",
-  },
-  {
-    id: uniqueId(),
-    title: "Parámetros",
-    icon: IconAdjustmentsHorizontal,
-    href: "/dynedu/settings/parametros",
-    permissionKey: "canManageParametros",
   },
   {
     id: "config-usuario-colegio",

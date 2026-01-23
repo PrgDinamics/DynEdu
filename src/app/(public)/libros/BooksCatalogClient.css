@@ -521,6 +521,26 @@
   margin-top: 22px; /* compensa label arriba de selects */
 }
 
+/* Disponible (verde) */
+.chip-available{
+  border: 1px solid rgba(90, 255, 170, 0.35);
+  background: rgba(52, 146, 123, 0.952);
+  color: rgba(8, 245, 39, 0.92);
+}
+
+/* Agotado (rojo) */
+.chip-out{
+  border: 1px solid rgba(255, 120, 120, 0.35);
+  background: rgba(138, 9, 9, 0.14);
+  color: rgba(255,255,255,0.92);
+}
+
+.btn-disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+
 /* Responsive: el carrito baja y el reset se acomoda */
 @media (max-width: 900px) {
   .catalog-headerRow {

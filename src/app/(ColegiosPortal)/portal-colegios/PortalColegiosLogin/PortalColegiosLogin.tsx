@@ -92,15 +92,15 @@ export default function PortalColegiosLogin() {
             />
           </div>
 
-          <h1 className="pcTitle">Portal de colegios</h1>
+          <h1 className="pcTitle">Portal de Colegios</h1>
           <p className="pcSubtitle">
-            Ingresa el RUC del colegio y tu <b>código de acceso</b> para registrar
+            Ingresa el RUC del Colegio y tu <b>código de acceso</b> para registrar
             consignaciones.
           </p>
 
           <form onSubmit={handleSubmit} className="pcForm">
             <div className="pcField">
-              <label className="pcLabel">RUC del colegio</label>
+              <label className="pcLabel">RUC del Colegio</label>
               <div className="pcInputWrap">
                 <span className="pcIcon">
                   <Building2 size={18} />

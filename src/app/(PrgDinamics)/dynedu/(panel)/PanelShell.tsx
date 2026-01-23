@@ -11,16 +11,38 @@ export type PermissionMap = Record<string, boolean>;
 
 // 🔒 Map de rutas => permisos requeridos (edítalo cuando agregues módulos)
 const ROUTE_PERMS: Array<{ startsWith: string; anyOf: string[] }> = [
+  // GENERAL
+  { startsWith: "/dynedu/dashboard", anyOf: ["canViewDashboard"] },
+  { startsWith: "/dynedu/actividad", anyOf: ["canViewActivity"] },
+
+  // CATÁLOGO
   { startsWith: "/dynedu/productos", anyOf: ["canViewProducts"] },
   { startsWith: "/dynedu/packs", anyOf: ["canViewPacks"] },
-  { startsWith: "/dynedu/precios", anyOf: ["canViewPriceCatalog", "canManagePriceCatalog", "canManagePricecatalog"] },
+  {
+    startsWith: "/dynedu/precios",
+    anyOf: ["canViewPriceCatalog", "canManagePriceCatalog"],
+  },
+  { startsWith: "/dynedu/proveedores", anyOf: ["canViewSuppliers"] },
 
-  // settings
+  // INVENTARIO
+  { startsWith: "/dynedu/inventario/stock", anyOf: ["canViewStock"] },
+  { startsWith: "/dynedu/inventario/movimientos", anyOf: ["canViewInventoryMovements"] },
+
+  // OPERACIONES
+  { startsWith: "/dynedu/pedidos", anyOf: ["canViewOrders"] },
+  { startsWith: "/dynedu/tracking", anyOf: ["canViewTracking"] },
+  { startsWith: "/dynedu/consignaciones", anyOf: ["canViewConsignations"] },
+  { startsWith: "/dynedu/entregas", anyOf: ["canViewOrders"] },
+
+  // REPORTES
+  { startsWith: "/dynedu/reportes/ventas", anyOf: ["canViewSalesCollections"] },
+
+  // CONFIG
+  { startsWith: "/dynedu/settings/general", anyOf: ["canManageGeneralSettings"] },
   { startsWith: "/dynedu/settings/usuario-roles", anyOf: ["canManageUsers", "canManageRoles"] },
-
-  // agrega más acá:
-  // { startsWith: "/dynedu/consignaciones", anyOf: ["canViewConsignaciones"] },
+  { startsWith: "/dynedu/settings/usuario-colegio", anyOf: ["canManageSchoolRegistry"] },
 ];
+
 
 const MainWrapper = styled("div")(() => ({
   display: "flex",
@@ -83,14 +105,17 @@ export default function PanelShell({
         <Header toggleMobileSidebar={() => setMobileSidebarOpen(true)} />
 
         <Container
-          maxWidth={false}
-          sx={{
-            paddingTop: "100px",
-            maxWidth: "1200px",
-          }}
-        >
-          <Box sx={{ minHeight: "calc(100vh - 170px)" }}>{children}</Box>
-        </Container>
+        maxWidth={false}
+        disableGutters
+        sx={{
+          paddingTop: "10px",
+          px: { xs: 2, md: 3 }, // padding lateral bonito, pero usando todo el ancho
+          width: "100%",
+        }}
+      >
+        <Box sx={{ minHeight: "calc(100vh - 170px)" }}>{children}</Box>
+      </Container>
+
       </PageWrapper>
     </MainWrapper>
   );

@@ -7,6 +7,8 @@ import {
   CardContent,
   Chip,
   Divider,
+  IconButton,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -14,9 +16,12 @@ import {
   TablePagination,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import MuiGrid from "@mui/material/Grid";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 
 // ⚠️ Hack: usamos el Grid de MUI pero le decimos a TS que acepta cualquier prop
 const Grid = MuiGrid as any;
@@ -82,7 +87,8 @@ function statusChipColor(status: string) {
 function eventChipColor(eventType: string) {
   const e = (eventType || "").toLowerCase();
   if (e.includes("cread") || e.includes("solic")) return "info";
-  if (e.includes("apro") || e.includes("abiert") || e.includes("final") || e.includes("cerr")) return "success";
+  if (e.includes("apro") || e.includes("abiert") || e.includes("final") || e.includes("cerr"))
+    return "success";
   if (e.includes("parcial") || e.includes("devuel") || e.includes("vend")) return "warning";
   if (e.includes("deneg") || e.includes("anul") || e.includes("revok")) return "error";
   return "default";
@@ -112,16 +118,213 @@ function normalize(v: unknown) {
   return String(v ?? "").toLowerCase();
 }
 
-function useFilteredRows<T>(
-  rows: T[],
-  query: string,
-  pick: (row: T) => Array<unknown>
-) {
+function useFilteredRows<T>(rows: T[], query: string, pick: (row: T) => Array<unknown>) {
   return useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) => pick(r).some((x) => normalize(x).includes(q)));
   }, [rows, query, pick]);
+}
+
+/** ---------------------------
+ *  Tracking detail formatter
+ *  --------------------------*/
+
+type TrackingDetailPayload = {
+  totalFaltante?: number | string;
+  totalExcedente?: number | string;
+  detalle?: Array<{
+    product_id?: number;
+    codigo?: string;
+    solicitada?: number | string;
+    recibida?: number | string;
+    faltante?: number | string;
+    excedente?: number | string;
+  }>;
+};
+
+type ProductLabel = {
+  primary: string; // description (preferred)
+  secondary?: string; // code
+};
+
+type ResolveProductLabel = (input: { productId?: number; code?: string }) => ProductLabel | null;
+
+function safeJsonParse(input: string): unknown | null {
+  try {
+    return JSON.parse(input);
+  } catch {
+    return null;
+  }
+}
+
+function toNumber(v: unknown): number {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function isTrackingDetailPayload(x: unknown): x is TrackingDetailPayload {
+  if (!x || typeof x !== "object") return false;
+  const o = x as any;
+  return "totalFaltante" in o || "totalExcedente" in o || Array.isArray(o.detalle);
+}
+
+function SummaryChip(props: { label: string; value: number; kind: "missing" | "extra" }) {
+  const { label, value, kind } = props;
+  const color =
+    value > 0 ? (kind === "missing" ? ("warning" as any) : ("info" as any)) : ("default" as any);
+
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      color={color}
+      label={`${label}: ${value}`}
+      sx={{ fontWeight: 700 }}
+    />
+  );
+}
+
+function TrackingDetailCell(props: { raw: unknown; resolveProductLabel?: ResolveProductLabel }) {
+  const rawStr = String(props.raw ?? "").trim();
+  if (!rawStr || rawStr === "—") return <Typography variant="body2">—</Typography>;
+
+  const parsed = rawStr.startsWith("{") ? safeJsonParse(rawStr) : null;
+
+  // Not JSON / not our schema => render as nice plain text
+  if (!parsed || !isTrackingDetailPayload(parsed)) {
+    return (
+      <Typography
+        variant="body2"
+        sx={{
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: 520,
+        }}
+      >
+        {rawStr}
+      </Typography>
+    );
+  }
+
+  const totalMissing = toNumber(parsed.totalFaltante);
+  const totalExtra = toNumber(parsed.totalExcedente);
+  const items = Array.isArray(parsed.detalle) ? parsed.detalle : [];
+
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Box>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+        <SummaryChip label="Faltante" value={totalMissing} kind="missing" />
+        <SummaryChip label="Excedente" value={totalExtra} kind="extra" />
+
+        {items.length > 0 ? (
+          <Tooltip title={open ? "Ocultar detalle" : "Ver detalle"}>
+            <IconButton size="small" onClick={() => setOpen((v) => !v)}>
+              {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        ) : null}
+      </Stack>
+
+      {open && items.length > 0 ? (
+        <Box
+          sx={{
+            mt: 1,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
+            overflow: "hidden",
+          }}
+        >
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ py: 0.75 }}>
+                  <Typography variant="caption" fontWeight={800} color="text.secondary">
+                    Producto
+                  </Typography>
+                </TableCell>
+                <TableCell sx={{ py: 0.75, width: 90 }} align="right">
+                  <Typography variant="caption" fontWeight={800} color="text.secondary">
+                    Sol.
+                  </Typography>
+                </TableCell>
+                <TableCell sx={{ py: 0.75, width: 90 }} align="right">
+                  <Typography variant="caption" fontWeight={800} color="text.secondary">
+                    Rec.
+                  </Typography>
+                </TableCell>
+                <TableCell sx={{ py: 0.75, width: 100 }} align="right">
+                  <Typography variant="caption" fontWeight={800} color="text.secondary">
+                    Falt.
+                  </Typography>
+                </TableCell>
+                <TableCell sx={{ py: 0.75, width: 110 }} align="right">
+                  <Typography variant="caption" fontWeight={800} color="text.secondary">
+                    Exc.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {items.map((it, idx) => {
+                const req = toNumber(it.solicitada);
+                const rec = toNumber(it.recibida);
+                const miss = toNumber(it.faltante);
+                const extra = toNumber(it.excedente);
+
+                const resolved =
+                  props.resolveProductLabel?.({
+                    productId: it.product_id,
+                    code: it.codigo ? String(it.codigo) : undefined,
+                  }) ?? null;
+
+                const fallbackPrimary = String(it.codigo ?? it.product_id ?? `#${idx + 1}`);
+                const primary = resolved?.primary ?? fallbackPrimary;
+                const secondary = resolved?.secondary;
+
+                return (
+                  <TableRow key={`${fallbackPrimary}-${idx}`} hover>
+                    <TableCell sx={{ py: 0.75 }}>
+                      <Typography variant="body2" fontWeight={800}>
+                        {primary}
+                      </Typography>
+                      {secondary ? (
+                        <Typography variant="caption" color="text.secondary">
+                          {secondary}
+                        </Typography>
+                      ) : null}
+                    </TableCell>
+
+                    <TableCell sx={{ py: 0.75 }} align="right">
+                      <Typography variant="body2">{req}</Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 0.75 }} align="right">
+                      <Typography variant="body2">{rec}</Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 0.75 }} align="right">
+                      <Typography variant="body2" color={miss > 0 ? "warning.main" : "text.primary"}>
+                        {miss}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 0.75 }} align="right">
+                      <Typography variant="body2" color={extra > 0 ? "info.main" : "text.primary"}>
+                        {extra}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Box>
+      ) : null}
+    </Box>
+  );
 }
 
 function TableWithSearchAndPagination(props: {
@@ -152,7 +355,6 @@ function TableWithSearchAndPagination(props: {
     return filtered.slice(start, start + rowsPerPage);
   }, [filtered, page, rowsPerPage, shouldShowControls]);
 
-  // reset page when searching
   React.useEffect(() => {
     setPage(0);
   }, [search]);
@@ -172,13 +374,13 @@ function TableWithSearchAndPagination(props: {
             ) : null}
           </Box>
 
-          {shouldShowControls ? (
+          {props.rows.length > (props.showControlsThreshold ?? 5) ? (
             <TextField
               size="small"
-              placeholder={props.searchPlaceholder ?? "Buscar..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: 260 }}
+              placeholder={props.searchPlaceholder ?? "Buscar..."}
+              sx={{ minWidth: 220 }}
             />
           ) : null}
         </Box>
@@ -253,20 +455,39 @@ export default function ActividadClient(props: {
   pedidos: PedidoRow[];
   tracking: TrackingRow[];
 }) {
+  // Maps para resolver product_id/codigo -> descripcion
+  const productById = useMemo(() => {
+    const m = new Map<number, ProductoRow>();
+    for (const p of props.productos) m.set(p.id, p);
+    return m;
+  }, [props.productos]);
+
+  const productByInternalId = useMemo(() => {
+    const m = new Map<string, ProductoRow>();
+    for (const p of props.productos) m.set(String(p.internal_id ?? "").trim(), p);
+    return m;
+  }, [props.productos]);
+
+  const resolveProductLabel: ResolveProductLabel = ({ productId, code }) => {
+    if (typeof productId === "number") {
+      const p = productById.get(productId);
+      if (p) return { primary: p.descripcion, secondary: p.internal_id ? `Código: ${p.internal_id}` : undefined };
+    }
+    if (code) {
+      const p = productByInternalId.get(String(code).trim());
+      if (p) return { primary: p.descripcion, secondary: p.internal_id ? `Código: ${p.internal_id}` : undefined };
+    }
+    return null;
+  };
+
   const totalSuppliers = props.proveedores.length;
   const totalProducts = props.productos.length;
   const totalOrders = props.pedidos.length;
-  const totalUnitsOrdered = props.pedidos.reduce(
-    (sum, p) => sum + (p.unidades_solicitadas ?? 0),
-    0
-  );
+  const totalUnitsOrdered = props.pedidos.reduce((sum, p) => sum + (p.unidades_solicitadas ?? 0), 0);
 
   const latestOrders = useMemo(() => props.pedidos.slice(0, 10), [props.pedidos]);
 
-  const latestTracking = useMemo(() => {
-    const rows = props.tracking.slice(0, 20);
-    return rows;
-  }, [props.tracking]);
+  const latestTracking = useMemo(() => props.tracking.slice(0, 20), [props.tracking]);
 
   const orderRows = useMemo(
     () =>
@@ -296,7 +517,6 @@ export default function ActividadClient(props: {
 
   return (
     <Box>
-      {/* KPIs */}
       <Grid container spacing={2} mb={2}>
         <Grid item xs={12} md={3}>
           {kpiCard("Proveedores", totalSuppliers)}
@@ -312,12 +532,11 @@ export default function ActividadClient(props: {
         </Grid>
       </Grid>
 
-      {/* Tablas */}
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <TableWithSearchAndPagination
             title="Últimos pedidos"
-            subtitle="Lista reciente (filtro + paginación si hay más de 5 filas)"
+            subtitle="Lista reciente de pedidos"
             showControlsThreshold={5}
             columns={[
               { key: "codigo", label: "Código" },
@@ -332,12 +551,7 @@ export default function ActividadClient(props: {
               if (key === "estado") {
                 const s = String(row.estado ?? "");
                 return (
-                  <Chip
-                    size="small"
-                    label={s || "—"}
-                    color={statusChipColor(s) as any}
-                    variant="outlined"
-                  />
+                  <Chip size="small" label={s || "—"} color={statusChipColor(s) as any} variant="outlined" />
                 );
               }
               if (key === "fecha") return formatDate(row.fecha as any);
@@ -362,24 +576,23 @@ export default function ActividadClient(props: {
             searchKeys={(row) => [row.pedidoCodigo, row.proveedor, row.evento, row.detalle]}
             renderCell={(key, row) => {
               if (key === "fecha") return formatDate(row.fecha as any);
+
               if (key === "evento") {
                 const e = String(row.evento ?? "");
                 return (
-                  <Chip
-                    size="small"
-                    label={e || "—"}
-                    color={eventChipColor(e) as any}
-                    variant="outlined"
-                  />
+                  <Chip size="small" label={e || "—"} color={eventChipColor(e) as any} variant="outlined" />
                 );
               }
+
+              if (key === "detalle") {
+                return <TrackingDetailCell raw={row.detalle} resolveProductLabel={resolveProductLabel} />;
+              }
+
               return String(row[key] ?? "—");
             }}
           />
         </Grid>
       </Grid>
-
-    
     </Box>
   );
 }

@@ -7,6 +7,26 @@ import {
   GeneralSettingsOrderEditStatus,
 } from "@/modules/settings/types";
 
+import { revalidatePath } from "next/cache";
+
+export type CampaignStatus = "DRAFT" | "ACTIVE" | "CLOSED";
+
+export type CampaignRow = {
+  id: string;
+  name: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
+  status: CampaignStatus;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ActiveCampaignViewRow = CampaignRow & {
+  start_ts_utc: string;
+  end_ts_utc_exclusive: string;
+};
+
 const GENERAL_SETTINGS_KEY = "general";
 
 // Defaults por si aún no hay nada en la BD
@@ -121,4 +141,97 @@ export async function saveGeneralSettings(
     console.error("Error saving general settings:", error);
     throw error;
   }
+
+  revalidatePath("/dynedu/settings/general");
+}
+
+// -------------------------
+// Campaigns (Academic Year)
+// -------------------------
+
+export async function listCampaigns(): Promise<CampaignRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from("campaigns")
+    .select("id,name,start_date,end_date,status,timezone,created_at,updated_at")
+    .order("start_date", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching campaigns:", error);
+    throw error;
+  }
+
+  return (data ?? []) as CampaignRow[];
+}
+
+export async function getActiveCampaign(): Promise<ActiveCampaignViewRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from("v_active_campaign")
+    .select("*")
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") {
+    console.error("Error fetching active campaign:", error);
+    throw error;
+  }
+
+  return (data ?? null) as ActiveCampaignViewRow | null;
+}
+
+export async function createCampaign(input: {
+  name: string;
+  start_date: string;
+  end_date: string;
+  timezone?: string;
+}): Promise<CampaignRow> {
+  const payload = {
+    name: input.name,
+    start_date: input.start_date,
+    end_date: input.end_date,
+    status: "DRAFT" as const,
+    timezone: input.timezone ?? "America/Lima",
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from("campaigns")
+    .insert(payload)
+    .select("id,name,start_date,end_date,status,timezone,created_at,updated_at")
+    .single();
+
+  if (error) {
+    console.error("Error creating campaign:", error);
+    throw error;
+  }
+
+  revalidatePath("/dynedu/settings/general");
+  revalidatePath("/dynedu/dashboard");
+
+  return data as CampaignRow;
+}
+
+export async function activateCampaign(campaignId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("activate_campaign", {
+    p_campaign_id: campaignId,
+  });
+
+  if (error) {
+    console.error("Error activating campaign:", error);
+    throw error;
+  }
+
+  revalidatePath("/dynedu/settings/general");
+  revalidatePath("/dynedu/dashboard");
+}
+
+export async function closeCampaign(campaignId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("close_campaign", {
+    p_campaign_id: campaignId,
+  });
+
+  if (error) {
+    console.error("Error closing campaign:", error);
+    throw error;
+  }
+
+  revalidatePath("/dynedu/settings/general");
+  revalidatePath("/dynedu/dashboard");
 }

@@ -295,7 +295,7 @@ export default function CheckoutClient() {
       }
 
       if (res.status === 403 && msg === "BUYER_PROFILE_REQUIRED") {
-        safeRedirect(`/auth/register?mode=complete&next=${encodeURIComponent("/checkout")}`);
+        safeRedirect(`/perfil?next=${encodeURIComponent("/checkout")}`);
         return;
       }
 

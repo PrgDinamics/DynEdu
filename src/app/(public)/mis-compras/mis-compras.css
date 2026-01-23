@@ -1,0 +1,238 @@
+.mcPage{
+  min-height: 100vh;
+  padding: 110px 18px 70px;
+  color: #eaeaf2;
+  background:
+    radial-gradient(1200px 700px at 20% -10%, rgba(136, 135, 232, 0.28), transparent 60%),
+    radial-gradient(1000px 650px at 90% 10%, rgba(126, 228, 255, 0.18), transparent 55%),
+    radial-gradient(900px 600px at 55% 120%, rgba(255, 167, 38, 0.16), transparent 55%),
+    #070812;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.mcWrap{
+  width: min(920px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
+.mcHeader{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 26px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+}
+
+.mcTitle{
+  margin: 0;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.mcSub{
+  margin-top: 6px;
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  opacity: .85;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mcCount{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.mcMsg{
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.mcErr{
+  background: rgba(255, 64, 64, 0.10);
+  border-color: rgba(255, 64, 64, 0.30);
+}
+
+.mcList{
+  display:grid;
+  gap: 12px;
+}
+
+.mcCard{
+  border-radius: 22px;
+  padding: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 14px 50px rgba(0,0,0,0.25);
+}
+
+.mcEmpty{
+  font-weight: 900;
+  opacity: .9;
+}
+
+.mcTopRow{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+.mcLeft{ display:flex; flex-direction:column; gap: 4px; }
+.mcOrderId{ font-weight: 900; font-size: 13px; }
+.mcMeta{ opacity:.85; font-weight: 800; font-size: 12px; display:flex; gap:8px; flex-wrap:wrap; }
+
+.mcRight{ display:flex; gap: 10px; align-items:center; }
+
+.mcPill{
+  font-size: 12px;
+  font-weight: 900;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(136, 135, 232, 0.22);
+  border: 1px solid rgba(136, 135, 232, 0.28);
+}
+
+.mcBtn{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mcProgress{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mcStep{
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+  align-items:flex-start;
+  opacity: .55;
+}
+
+.mcStep.isActive{ opacity: 1; }
+
+.mcDot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.20);
+}
+
+.mcStep.isActive .mcDot{
+  background: rgba(255, 193, 7, 0.85);
+  border-color: rgba(255, 193, 7, 0.65);
+}
+
+.mcLabel{
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.mcDelivery{
+  margin-top: 10px;
+  font-weight: 900;
+  font-size: 12px;
+  opacity: .9;
+}
+
+.mcDetails{
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.mcDetailTitle{
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.mcDetailEmpty{
+  opacity: .85;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.mcTimeline{ display:grid; gap: 10px; }
+
+.mcEvent{ display:flex; gap: 10px; align-items:flex-start; }
+
+.mcEventDot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 5px;
+  background: rgba(255, 193, 7, 0.85);
+}
+
+.mcEventBody{ flex: 1; }
+
+.mcEventTop{
+  display:flex;
+  justify-content:space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  opacity: .95;
+}
+
+.mcEventNote{
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: .85;
+}
+
+.mcPaymentRef{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  opacity: .9;
+}
+
+@media (max-width: 820px){
+  .mcHeader{
+    flex-direction: column;
+    align-items:flex-start;
+  }
+  .mcTopRow{
+    flex-direction: column;
+  }
+  .mcRight{
+    width: 100%;
+    justify-content: space-between;
+  }
+  .mcProgress{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
