@@ -10,7 +10,7 @@ export default function HomePage() {
     <>
       <div className="heroScene">
         <Hero />
-        <ScrollRevealPromo imageSrc="/images/web/readers.png"/>
+        <ScrollRevealPromo imageSrc="/images/web/READERS.png"/>
       </div>
 
       <About />
