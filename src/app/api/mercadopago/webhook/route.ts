@@ -167,7 +167,7 @@ async function generateNiceReceiptPdf(args: {
   });
 
   // Logo (desde public/images/de-logo-color.png)
-  const logoPath = path.join(process.cwd(), "public", "images", "de-logo-color.png");
+  const logoPath = path.join(process.cwd(), "public", "images", "logo","de-logo-color.png");
   try {
     const logoBytes = fs.readFileSync(logoPath);
     const logo = await pdfDoc.embedPng(logoBytes);
