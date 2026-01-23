@@ -73,7 +73,7 @@ export default function PaymentResultClient({ mode }: Props) {
 
         <div className="payres-actions">
           <a className="btn" href="/libros">Volver al catálogo</a>
-          <a className="btn ghost" href="/carrito">Ver carrito</a>
+          <a className="btn ghost" href="/mis-compras">Ver mis compras</a>
         </div>
       </div>
     </div>

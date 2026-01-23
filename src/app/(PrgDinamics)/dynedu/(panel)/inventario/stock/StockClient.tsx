@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
   TablePagination,
+  Chip,
 } from "@mui/material";
 
 import { useSearchAndPagination } from "@/modules/dynedu/hooks/useSearchAndPagination";
@@ -75,7 +76,10 @@ export default function StockClient({ initialStock }: StockClientProps) {
     () =>
       paginatedData.map((r) => ({
         ...r,
-        stock_disponible: r.stock_fisico - r.stock_reservado,
+        stock_disponible:
+          (r.stock_fisico ?? 0) -
+          (r.stock_reservado ?? 0) -
+          (r.stock_consignado ?? 0),
       })),
     [paginatedData]
   );
@@ -86,9 +90,7 @@ export default function StockClient({ initialStock }: StockClientProps) {
         Stock
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Visión general del stock actual por producto. Solo se muestran
-        unidades recibidas y reservadas; las actualizaciones vendrán de
-        pedidos cerrados y movimientos futuros.
+        Stock físico, reservado (checkout web) y consignado (consignaciones abiertas).
       </Typography>
 
       <Card
@@ -101,12 +103,11 @@ export default function StockClient({ initialStock }: StockClientProps) {
       >
         <CardHeader
           title="Stock actual por producto"
-          subheader="Incluye stock físico, reservado y disponible."
+          subheader="Incluye stock físico, reservado, consignado y disponible."
         />
         <CardContent>
           <Divider sx={{ mb: 2 }} />
 
-          {/* Buscador */}
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={2}
@@ -128,7 +129,6 @@ export default function StockClient({ initialStock }: StockClientProps) {
             />
           </Stack>
 
-          {/* Tabla */}
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -137,34 +137,50 @@ export default function StockClient({ initialStock }: StockClientProps) {
                 <TableCell>Editorial</TableCell>
                 <TableCell align="right">Stock físico</TableCell>
                 <TableCell align="right">Reservado</TableCell>
+                <TableCell align="right">Consignado</TableCell>
                 <TableCell align="right">Disponible</TableCell>
                 <TableCell>Última actualización</TableCell>
                 <TableCell>Actualizado por</TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
               {rowsWithDisponible.map((row) => {
                 const prod = row.productos;
+                const disponible = (row as any).stock_disponible ?? 0;
+
+                const hasNegative =
+                  (row.stock_fisico ?? 0) < 0 ||
+                  (row.stock_consignado ?? 0) < 0 ||
+                  disponible < 0;
 
                 return (
                   <TableRow key={row.id} hover>
-                    <TableCell sx={{ fontWeight: 500 }}>
+                    <TableCell sx={{ fontWeight: 600 }}>
                       {prod?.internal_id ?? `ID ${row.producto_id}`}
                     </TableCell>
+
                     <TableCell>{prod?.descripcion ?? "—"}</TableCell>
                     <TableCell>{prod?.editorial ?? "—"}</TableCell>
+
+                    <TableCell align="right">{row.stock_fisico ?? 0}</TableCell>
+                    <TableCell align="right">{row.stock_reservado ?? 0}</TableCell>
+                    <TableCell align="right">{row.stock_consignado ?? 0}</TableCell>
+
                     <TableCell align="right">
-                      {row.stock_fisico}
+                      {hasNegative ? (
+                        <Chip
+                          size="small"
+                          color="error"
+                          label={disponible}
+                          sx={{ fontWeight: 800 }}
+                        />
+                      ) : (
+                        disponible
+                      )}
                     </TableCell>
-                    <TableCell align="right">
-                      {row.stock_reservado}
-                    </TableCell>
-                    <TableCell align="right">
-                      {row.stock_disponible}
-                    </TableCell>
-                    <TableCell>
-                      {formatDateTime(row.updated_at)}
-                    </TableCell>
+
+                    <TableCell>{formatDateTime(row.updated_at)}</TableCell>
                     <TableCell>{row.updated_by ?? "—"}</TableCell>
                   </TableRow>
                 );
@@ -172,12 +188,8 @@ export default function StockClient({ initialStock }: StockClientProps) {
 
               {total === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ py: 2 }}
-                    >
+                  <TableCell colSpan={9} align="center">
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                       No hay registros de stock aún.
                     </Typography>
                   </TableCell>
@@ -196,9 +208,7 @@ export default function StockClient({ initialStock }: StockClientProps) {
               rowsPerPageOptions={[rowsPerPage]}
               labelRowsPerPage="Filas por página"
               labelDisplayedRows={({ from, to, count }) =>
-                `${from}-${to} de ${
-                  count !== -1 ? count : `más de ${to}`
-                }`
+                `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
               }
             />
           )}

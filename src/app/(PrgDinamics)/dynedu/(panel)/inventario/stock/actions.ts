@@ -7,6 +7,7 @@ export type StockRow = {
   producto_id: number;
   stock_fisico: number;
   stock_reservado: number;
+  stock_consignado: number; // ✅ NEW
   updated_at: string | null;
   updated_by: string | null;
   productos?: {
@@ -29,6 +30,7 @@ export async function fetchStockActual(): Promise<StockRow[]> {
         producto_id,
         stock_fisico,
         stock_reservado,
+        stock_consignado,
         updated_at,
         updated_by,
         productos (
@@ -50,6 +52,81 @@ export async function fetchStockActual(): Promise<StockRow[]> {
 }
 
 /**
+ * Internal helper to apply deltas to stock for a single product.
+ * Positive delta => increases stock; negative delta => decreases stock.
+ *
+ * - deltaFisico affects stock_fisico
+ * - deltaConsignado affects stock_consignado
+ */
+async function applyStockDeltasForProduct(
+  productoId: number,
+  deltaFisico: number,
+  deltaConsignado: number,
+  updatedBy: string
+): Promise<void> {
+  if (!productoId) return;
+  if (!deltaFisico && !deltaConsignado) return;
+
+  const { data: existingRows, error: existingError } = await supabaseAdmin
+    .from("stock_actual")
+    .select("id, stock_fisico, stock_reservado, stock_consignado")
+    .eq("producto_id", productoId);
+
+  if (existingError) {
+    console.error("[applyStockDeltasForProduct] read error:", existingError);
+    throw existingError;
+  }
+
+  const existing = existingRows?.[0] as
+    | {
+        id: number;
+        stock_fisico: number;
+        stock_reservado: number;
+        stock_consignado: number;
+      }
+    | undefined;
+
+  const nowIso = new Date().toISOString();
+
+  if (existing) {
+    const nuevoFisico = (existing.stock_fisico ?? 0) + (deltaFisico ?? 0);
+    const nuevoConsignado =
+      (existing.stock_consignado ?? 0) + (deltaConsignado ?? 0);
+
+    const { error: updateError } = await supabaseAdmin
+      .from("stock_actual")
+      .update({
+        stock_fisico: nuevoFisico,
+        stock_consignado: nuevoConsignado,
+        updated_at: nowIso,
+        updated_by: updatedBy,
+      })
+      .eq("id", existing.id);
+
+    if (updateError) {
+      console.error("[applyStockDeltasForProduct] update error:", updateError);
+      throw updateError;
+    }
+  } else {
+    const { error: insertError } = await supabaseAdmin.from("stock_actual").insert([
+      {
+        producto_id: productoId,
+        stock_fisico: deltaFisico ?? 0,
+        stock_reservado: 0,
+        stock_consignado: deltaConsignado ?? 0,
+        updated_at: nowIso,
+        updated_by: updatedBy,
+      },
+    ]);
+
+    if (insertError) {
+      console.error("[applyStockDeltasForProduct] insert error:", insertError);
+      throw insertError;
+    }
+  }
+}
+
+/**
  * Internal helper to apply a delta to stock_fisico for a single product.
  * Positive delta => increases stock; negative delta => decreases stock.
  */
@@ -58,53 +135,8 @@ async function applyStockDeltaForProduct(
   delta: number,
   updatedBy: string
 ): Promise<void> {
-  if (!productoId || !delta) return;
-
-  const { data: existingRows, error: existingError } = await supabaseAdmin
-    .from("stock_actual")
-    .select("id, stock_fisico")
-    .eq("producto_id", productoId);
-
-  if (existingError) {
-    console.error("[applyStockDeltaForProduct] read error:", existingError);
-    throw existingError;
-  }
-
-  const existing = existingRows?.[0];
-  const nowIso = new Date().toISOString();
-
-  if (existing) {
-    const nuevoStock = (existing.stock_fisico as number) + delta;
-
-    const { error: updateError } = await supabaseAdmin
-      .from("stock_actual")
-      .update({
-        stock_fisico: nuevoStock,
-        updated_at: nowIso,
-        updated_by: updatedBy,
-      })
-      .eq("id", existing.id);
-
-    if (updateError) {
-      console.error("[applyStockDeltaForProduct] update error:", updateError);
-      throw updateError;
-    }
-  } else {
-    const { error: insertError } = await supabaseAdmin.from("stock_actual").insert([
-      {
-        producto_id: productoId,
-        stock_fisico: delta,
-        stock_reservado: 0,
-        updated_at: nowIso,
-        updated_by: updatedBy,
-      },
-    ]);
-
-    if (insertError) {
-      console.error("[applyStockDeltaForProduct] insert error:", insertError);
-      throw insertError;
-    }
-  }
+  // ✅ keep existing behavior for other flows
+  return applyStockDeltasForProduct(productoId, delta, 0, updatedBy);
 }
 
 /**
@@ -125,9 +157,7 @@ export async function actualizarStockDesdePedido(
     throw itemsError;
   }
 
-  if (!items || items.length === 0) {
-    return;
-  }
+  if (!items || items.length === 0) return;
 
   for (const item of items) {
     const productoId = (item as any).producto_id as number | null;
@@ -171,9 +201,7 @@ export async function adjustStockByPack(
     throw error;
   }
 
-  if (!items || items.length === 0) {
-    return;
-  }
+  if (!items || items.length === 0) return;
 
   for (const item of items) {
     const productoId = (item as any).producto_id as number | null;
@@ -182,7 +210,6 @@ export async function adjustStockByPack(
     if (!productoId || !cantidadPorPack) continue;
 
     const delta = cantidadPorPack * cantidadPacks * factor;
-
     if (!delta) continue;
 
     await applyStockDeltaForProduct(productoId, delta, updatedBy);
@@ -201,12 +228,14 @@ export type ConsignacionStockItem = {
  * Adjust stock based on consignation flows.
  *
  * mode:
- *  - "salida": books leave central warehouse as consignation
+ *  - "salida": books leave warehouse as consignation
  *              => stock_fisico -= cantidad
- *  - "devolucion": books are returned from consignation
+ *              => stock_consignado += cantidad
+ *  - "devolucion": books returned from consignation
  *              => stock_fisico += cantidad
- *  - "venta": final sale at school (stock already left on "salida")
- *              => no change in stock_actual for now
+ *              => stock_consignado -= cantidad
+ *  - "venta": sold at school (stock already left on "salida")
+ *              => stock_consignado -= cantidad
  */
 export async function adjustStockForConsignacion(
   items: ConsignacionStockItem[],
@@ -221,15 +250,17 @@ export async function adjustStockForConsignacion(
 
     if (!productoId || !cantidad) continue;
 
-    if (mode === "venta") {
-      // Stock físico ya salió en "salida" de consignación,
-      // aquí solo estamos cerrando contablemente la venta.
+    if (mode === "salida") {
+      await applyStockDeltasForProduct(productoId, -cantidad, +cantidad, updatedBy);
       continue;
     }
 
-    const factor = mode === "salida" ? -1 : 1;
-    const delta = cantidad * factor;
+    if (mode === "devolucion") {
+      await applyStockDeltasForProduct(productoId, +cantidad, -cantidad, updatedBy);
+      continue;
+    }
 
-    await applyStockDeltaForProduct(productoId, delta, updatedBy);
+    // mode === "venta"
+    await applyStockDeltasForProduct(productoId, 0, -cantidad, updatedBy);
   }
 }

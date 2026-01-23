@@ -319,7 +319,7 @@ async function sendPaidEmailWithPdf(args: {
   const orderCode = shortId(args.orderId);
 
   const siteUrl = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/$/, "");
-  const logoUrl = siteUrl ? `${siteUrl}/images/de-logo-color.png` : "";
+  const logoUrl = siteUrl ? `${siteUrl}/images/logos/de-logo-color.png` : "";
 
   const greet = args.customerName ? `Hola ${args.customerName},` : "Hola,";
 
