@@ -5,6 +5,8 @@ export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
 
+const PORTAL_COLEGIO_COOKIE = "portal_colegio_id";
+
 function isDyneduLoginPath(pathname: string) {
   return pathname === "/dynedu" || pathname === "/dynedu/";
 }
@@ -17,11 +19,9 @@ function isPublicPath(pathname: string) {
   // Public auth (compras)
   if (pathname.startsWith("/auth")) return true;
 
-  // ✅ Portal login page must be public (no session needed to see login)
-  if (isPortalColegiosLoginPath(pathname)) return true;
-
-  // ✅ DynEdu login page must be public (already working, keep as-is)
+  // DynEdu + Portal login pages must be public
   if (isDyneduLoginPath(pathname)) return true;
+  if (isPortalColegiosLoginPath(pathname)) return true;
 
   // Public website routes
   if (pathname === "/") return true;
@@ -35,7 +35,6 @@ function isPublicPath(pathname: string) {
 }
 
 function isProtectedRootPath(pathname: string) {
-  // Public site protected pages (buyer session)
   if (pathname.startsWith("/checkout")) return true;
   if (pathname.startsWith("/perfil")) return true;
   return false;
@@ -60,12 +59,10 @@ export async function middleware(req: NextRequest) {
   const isRootDomain =
     hostname === "dynamiceducationperu.com" || hostname === "www.dynamiceducationperu.com";
 
-  // Root domain (public)
   if (isRootDomain) {
     res = NextResponse.next();
-  }
-  // colegios -> /portal-colegios
-  else if (hostname.startsWith("colegios.")) {
+  } else if (hostname.startsWith("colegios.")) {
+    // colegios -> /portal-colegios
     if (!url.pathname.startsWith("/portal-colegios")) {
       const rewriteUrl = url.clone();
       rewriteUrl.pathname = `/portal-colegios${url.pathname === "/" ? "" : url.pathname}`;
@@ -73,9 +70,8 @@ export async function middleware(req: NextRequest) {
     } else {
       res = NextResponse.next();
     }
-  }
-  // intranet -> /dynedu
-  else if (hostname.startsWith("intranet.")) {
+  } else if (hostname.startsWith("intranet.")) {
+    // intranet -> /dynedu
     if (!url.pathname.startsWith("/dynedu")) {
       const rewriteUrl = url.clone();
       rewriteUrl.pathname = `/dynedu${url.pathname === "/" ? "" : url.pathname}`;
@@ -87,7 +83,7 @@ export async function middleware(req: NextRequest) {
     res = NextResponse.next();
   }
 
-  // --- 2) Supabase SSR: capture cookies to apply to any response ---
+  // --- 2) Supabase SSR (solo para rutas que usan Supabase Auth) ---
   const cookiesToApply: Array<{ name: string; value: string; options: any }> = [];
 
   const supabase = createServerClient(
@@ -115,7 +111,7 @@ export async function middleware(req: NextRequest) {
   const path = url.pathname;
   const publicPath = isPublicPath(path);
 
-  // --- 3) Auth guard: root-domain protected pages (buyer) ---
+  // --- 3) Guard para web pública (compradores) ---
   if (isRootDomain) {
     const protectedPath = isProtectedRootPath(path);
 
@@ -134,40 +130,35 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // --- 4) Auth guard: DynEdu + Portal (localhost + subdomains) ---
+  // --- 4) DynEdu guard (Supabase Auth) ---
   const dyneduArea = isDyneduPath(path) || hostname.startsWith("intranet.");
-  const portalArea = isPortalColegiosPath(path) || hostname.startsWith("colegios.");
-
   const isDyneduLogin = isDyneduLoginPath(path);
+
+  if (dyneduArea && !user && !publicPath && !isDyneduLogin) {
+    const loginUrl = url.clone();
+    loginUrl.pathname = "/dynedu";
+    loginUrl.searchParams.set("next", path + (url.search || ""));
+
+    const redirectRes = NextResponse.redirect(loginUrl);
+    cookiesToApply.forEach(({ name, value, options }) =>
+      redirectRes.cookies.set(name, value, options)
+    );
+    return redirectRes;
+  }
+
+  // --- 5) Portal Colegios guard (cookie propia: portal_colegio_id) ---
+  const portalArea = isPortalColegiosPath(path) || hostname.startsWith("colegios.");
   const isPortalLogin = isPortalColegiosLoginPath(path);
 
-  // If user not logged in and trying to access protected dynedu/portal content:
-  if (!user && !publicPath) {
-    // ✅ DynEdu stays as you already have it working
-    if (dyneduArea && !isDyneduLogin) {
-      const loginUrl = url.clone();
-      loginUrl.pathname = "/dynedu";
-      loginUrl.searchParams.set("next", path + (url.search || ""));
+  const portalSession = req.cookies.get(PORTAL_COLEGIO_COOKIE)?.value;
+  const hasPortalSession = Boolean(portalSession);
 
-      const redirectRes = NextResponse.redirect(loginUrl);
-      cookiesToApply.forEach(({ name, value, options }) =>
-        redirectRes.cookies.set(name, value, options)
-      );
-      return redirectRes;
-    }
+  if (portalArea && !hasPortalSession && !publicPath && !isPortalLogin) {
+    const loginUrl = url.clone();
+    loginUrl.pathname = "/portal-colegios";
+    loginUrl.searchParams.set("next", path + (url.search || ""));
 
-    // ✅ Portal colegios must go to /portal-colegios (NOT /auth/login)
-    if (portalArea && !isPortalLogin) {
-      const loginUrl = url.clone();
-      loginUrl.pathname = "/portal-colegios";
-      loginUrl.searchParams.set("next", path + (url.search || ""));
-
-      const redirectRes = NextResponse.redirect(loginUrl);
-      cookiesToApply.forEach(({ name, value, options }) =>
-        redirectRes.cookies.set(name, value, options)
-      );
-      return redirectRes;
-    }
+    return NextResponse.redirect(loginUrl);
   }
 
   return res;
