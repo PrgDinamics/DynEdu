@@ -102,6 +102,16 @@ export default function LoginClient() {
             <UserPlus size={18} />
             <span>Crear cuenta</span>
           </button>
+
+          <button
+            type="button"
+            className="loginBtn loginBtnLink"
+            onClick={() => router.push(`/auth/forgot-password?next=${encodeURIComponent(next)}`)}
+            disabled={loading}
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
+
         </div>
 
         {error && (
