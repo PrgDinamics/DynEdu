@@ -115,9 +115,11 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   const activeCampaign = await getActiveCampaignForDashboard();
 
   // Range used for ALL KPIs + charts
-  // - If there's no active campaign, we fallback to "month-to-date" to avoid breaking the dashboard.
-  //   But the UI will warn that there is no active campaign.
-  const rangeStart = activeCampaign?.start_ts_utc ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  // - If there's no active campaign, fallback to "month-to-date".
+  const rangeStart =
+    activeCampaign?.start_ts_utc ??
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+
   const rangeEndExclusive = activeCampaign?.end_ts_utc_exclusive ?? new Date().toISOString();
 
   const rangeLabel = activeCampaign
@@ -125,9 +127,10 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     : "Mes actual (fallback)";
 
   // 1) KPI month sales (estimated)
-  // - from consignaciones (closed/open depending mode) + priced items
   const allowedStatuses =
-    mode === "closed" ? ["CERRADA"] : ["CERRADA", "ABIERTA", "EN_CURSO", "PENDIENTE", "APROBADA", "DEVOLUCION_PENDIENTE"];
+    mode === "closed"
+      ? ["CERRADA"]
+      : ["CERRADA", "ABIERTA", "EN_CURSO", "PENDIENTE", "APROBADA", "DEVOLUCION_PENDIENTE"];
 
   const { data: consignacionesCampaign } = await supabaseAdmin
     .from("consignaciones")
@@ -136,7 +139,7 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     .lt("created_at", rangeEndExclusive)
     .in("status", allowedStatuses);
 
-  const consignacionIds = (consignacionesCampaign ?? []).map((c) => c.id);
+  const consignacionIds = (consignacionesCampaign ?? []).map((c: any) => c.id);
 
   // items
   const { data: consignacionItemsMonth } =
@@ -163,22 +166,30 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   let campaignSales = 0;
 
   for (const it of consignacionItemsMonth ?? []) {
-    const qty = Number(it.cantidad ?? 0);
+    const qty = Number((it as any).cantidad ?? 0);
     campaignUnits += qty;
-    const price = priceByProduct.get(it.producto_id) ?? 0;
+    const price = priceByProduct.get((it as any).producto_id) ?? 0;
     campaignSales += qty * price;
   }
 
-  const avgTicket = consignacionesCampaign && consignacionesCampaign.length > 0 ? campaignSales / consignacionesCampaign.length : 0;
+  const avgTicket =
+    consignacionesCampaign && consignacionesCampaign.length > 0
+      ? campaignSales / consignacionesCampaign.length
+      : 0;
 
   // top client (by colegio) month
   const salesByColegio = new Map<string, number>();
   for (const it of consignacionItemsMonth ?? []) {
-    const price = priceByProduct.get(it.producto_id) ?? 0;
-    const consignacion = (consignacionesCampaign ?? []).find((c: any) => c.id === it.consignacion_id);
+    const price = priceByProduct.get((it as any).producto_id) ?? 0;
+    const consignacion = (consignacionesCampaign ?? []).find(
+      (c: any) => c.id === (it as any).consignacion_id,
+    );
     if (!consignacion?.colegio_id) continue;
     const prev = salesByColegio.get(consignacion.colegio_id) ?? 0;
-    salesByColegio.set(consignacion.colegio_id, prev + Number(it.cantidad ?? 0) * price);
+    salesByColegio.set(
+      consignacion.colegio_id,
+      prev + Number((it as any).cantidad ?? 0) * price,
+    );
   }
 
   let topClientId: string | null = null;
@@ -198,7 +209,6 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   const topClientName = topClientRow?.nombre ?? null;
 
   // 2) daily sales (campaign) (estimated)
-  // We'll approximate by grouping consignaciones by day and summing priced items
   const { data: consignacionesRange } = await supabaseAdmin
     .from("consignaciones")
     .select("id, created_at")
@@ -206,7 +216,7 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     .lt("created_at", rangeEndExclusive)
     .in("status", allowedStatuses);
 
-  const c30ids = (consignacionesRange ?? []).map((c) => c.id);
+  const c30ids = (consignacionesRange ?? []).map((c: any) => c.id);
 
   const { data: items30d } =
     c30ids.length === 0
@@ -221,11 +231,11 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
 
   const dayAmount = new Map<string, number>();
   for (const it of items30d ?? []) {
-    const createdAt = createdAtByConsId.get(it.consignacion_id);
+    const createdAt = createdAtByConsId.get((it as any).consignacion_id);
     if (!createdAt) continue;
     const day = String(createdAt).slice(0, 10);
-    const price = priceByProduct.get(it.producto_id) ?? 0;
-    const amount = Number(it.cantidad ?? 0) * price;
+    const price = priceByProduct.get((it as any).producto_id) ?? 0;
+    const amount = Number((it as any).cantidad ?? 0) * price;
     dayAmount.set(day, (dayAmount.get(day) ?? 0) + amount);
   }
 
@@ -238,10 +248,13 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   const amountByProduct = new Map<string, number>();
 
   for (const it of consignacionItemsMonth ?? []) {
-    const qty = Number(it.cantidad ?? 0);
-    unitsByProduct.set(it.producto_id, (unitsByProduct.get(it.producto_id) ?? 0) + qty);
-    const price = priceByProduct.get(it.producto_id) ?? 0;
-    amountByProduct.set(it.producto_id, (amountByProduct.get(it.producto_id) ?? 0) + qty * price);
+    const pid = String((it as any).producto_id);
+    const qty = Number((it as any).cantidad ?? 0);
+
+    unitsByProduct.set(pid, (unitsByProduct.get(pid) ?? 0) + qty);
+
+    const price = priceByProduct.get(pid) ?? 0;
+    amountByProduct.set(pid, (amountByProduct.get(pid) ?? 0) + qty * price);
   }
 
   const topProdIds = Array.from(unitsByProduct.entries())
@@ -255,7 +268,9 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
       : await supabaseAdmin.from("productos").select("id, descripcion").in("id", topProdIds);
 
   const prodNameById = new Map<string, string>();
-  (prodRows ?? []).forEach((p: any) => prodNameById.set(p.id, p.descripcion ?? `Producto ${p.id}`));
+  (prodRows ?? []).forEach((p: any) =>
+    prodNameById.set(p.id, p.descripcion ?? `Producto ${p.id}`),
+  );
 
   const topProductsCampaign = topProdIds.map((pid) => ({
     label: prodNameById.get(pid) ?? `Producto ${pid}`,
@@ -276,7 +291,10 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     const s = (r as any).status ?? "—";
     statusMap.set(s, (statusMap.get(s) ?? 0) + 1);
   }
-  const consignacionesByStatus = Array.from(statusMap.entries()).map(([status, count]) => ({ status, count }));
+  const consignacionesByStatus = Array.from(statusMap.entries()).map(([status, count]) => ({
+    status,
+    count,
+  }));
 
   // 5) ops
   const { count: openOrdersCount } = await supabaseAdmin
@@ -294,13 +312,13 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     .select("id", { count: "exact", head: true })
     .in("status", ["ABIERTA", "EN_CURSO"]);
 
-  // deliveries in 7 days (from entregas table or orders delivery_date)
+  // deliveries in 7 days
   const { count: deliveriesWeek } = await supabaseAdmin
     .from("orders")
     .select("id", { count: "exact", head: true })
     .gte("delivery_date", todayStart);
 
-  // 6) alerts - low stock (simple heuristic using stock_actual_view if exists; fallback to productos.stock)
+  // 6) alerts - low stock
   const lowStock: DashboardData["alerts"]["lowStock"] = [];
   const { data: stockRows } = await supabaseAdmin
     .from("stock_actual_view")
@@ -323,7 +341,11 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   // 7) alerts - no price in default list
   const noPrice: DashboardData["alerts"]["noPrice"] = [];
   if (usedPriceListId != null) {
-    const { data: prods } = await supabaseAdmin.from("productos").select("id, internal_id, descripcion").limit(200);
+    const { data: prods } = await supabaseAdmin
+      .from("productos")
+      .select("id, internal_id, descripcion")
+      .limit(200);
+
     const priced = new Set<string>((prices ?? []).map((p: any) => p.producto_id));
     for (const p of prods ?? []) {
       const id = (p as any).id;
@@ -352,7 +374,7 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
       delivery_date,
       fulfillment_updated_at,
       payments!inner(status, payment_id)
-    `
+    `,
     )
     .gte("created_at", rangeStart)
     .lt("created_at", rangeEndExclusive)

@@ -12,9 +12,11 @@ import {
   CART_EVENT_NAME,
   CART_STORAGE_KEY,
   getCart,
-  updateQuantity,
-  removeFromCart,
   clearCart,
+  updateProductQuantity,
+  updatePackQuantity,
+  removeProductFromCart,
+  removePackFromCart,
 } from "@/lib/store/cart";
 
 type ProductRow = {
@@ -24,14 +26,44 @@ type ProductRow = {
   foto_url?: string | null;
 };
 
-type ViewItem = {
-  productId: number;
+type PackRow = {
+  id: number;
+  nombre: string;
+  codigo_venta?: string | null;
+  foto_url?: string | null;
+  pack_items?: Array<{
+    cantidad?: number | null;
+    productos?: {
+      id: number;
+      descripcion: string;
+      internal_id: string;
+      codigo_venta?: string | null;
+    } | null;
+  }> | null;
+};
+
+type ViewItemBase = {
+  key: string;
+  type: "PRODUCT" | "PACK";
   titulo: string;
   codigo?: string | null;
-  precio: number; // unit price (from price_list_items)
+  precio: number; // unit price (product or pack unit price)
   qty: number;
   image_url?: string | null;
+  subtitle?: string | null;
 };
+
+type ViewItemProduct = ViewItemBase & {
+  type: "PRODUCT";
+  productId: number;
+};
+
+type ViewItemPack = ViewItemBase & {
+  type: "PACK";
+  packId: number;
+};
+
+type ViewItem = ViewItemProduct | ViewItemPack;
 
 // ---- Pricing helpers (based on your DB schema) ----
 async function getDefaultPriceListId(supabase: any): Promise<number | null> {
@@ -56,7 +88,7 @@ async function getDefaultPriceListId(supabase: any): Promise<number | null> {
   return fallback?.id ? Number(fallback.id) : null;
 }
 
-async function getPricesMap(
+async function getProductPricesMap(
   supabase: any,
   priceListId: number,
   productIds: number[]
@@ -71,12 +103,38 @@ async function getPricesMap(
     .in("producto_id", productIds);
 
   if (error) {
-    console.error("[pricing] price_list_items error:", error);
+    console.error("[pricing] product price_list_items error:", error);
     return map;
   }
 
   (data ?? []).forEach((row: any) => {
     map.set(Number(row.producto_id), Number(row.precio ?? 0));
+  });
+
+  return map;
+}
+
+async function getPackPricesMap(
+  supabase: any,
+  priceListId: number,
+  packIds: number[]
+): Promise<Map<number, number>> {
+  const map = new Map<number, number>();
+  if (!priceListId || packIds.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("price_list_items")
+    .select("pack_id,precio")
+    .eq("price_list_id", priceListId)
+    .in("pack_id", packIds);
+
+  if (error) {
+    console.error("[pricing] pack price_list_items error:", error);
+    return map;
+  }
+
+  (data ?? []).forEach((row: any) => {
+    map.set(Number(row.pack_id), Number(row.precio ?? 0));
   });
 
   return map;
@@ -101,7 +159,6 @@ function subscribeCart(cb: () => void) {
 export default function CarritoClient() {
   const router = useRouter();
 
-  // ✅ Unified client (same as CheckoutClient)
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [session, setSession] = useState<Session | null>(null);
@@ -120,7 +177,6 @@ export default function CarritoClient() {
     supabase.auth.getSession().then(async ({ data, error }) => {
       if (!alive) return;
 
-      // ✅ If refresh token is corrupt/missing, sign out hard and go login
       if (error) {
         await supabase.auth.signOut();
         router.replace(`/auth/login?next=${encodeURIComponent("/carrito")}`);
@@ -158,7 +214,7 @@ export default function CarritoClient() {
     return unsub;
   }, [sessionReady, session]);
 
-  // Build items: productos + precios desde price_list_items
+  // Build items: productos + packs + precios desde price_list_items
   useEffect(() => {
     let alive = true;
 
@@ -172,7 +228,7 @@ export default function CarritoClient() {
         return;
       }
 
-      const cleanCart = cartItems.filter((x) => x.quantity > 0);
+      const cleanCart = cartItems.filter((x: any) => (x?.quantity ?? 0) > 0);
 
       if (cleanCart.length === 0) {
         if (!alive) return;
@@ -181,51 +237,116 @@ export default function CarritoClient() {
         return;
       }
 
-      const ids = cleanCart.map((c) => c.productId);
+      const productIds = cleanCart
+        .filter((c: any) => c.type === "PRODUCT")
+        .map((c: any) => c.productId);
 
-      const { data: products, error: pErr } = await supabase
-        .from("productos")
-        .select("id,descripcion,codigo_venta,foto_url")
-        .in("id", ids);
+      const packIds = cleanCart
+        .filter((c: any) => c.type === "PACK")
+        .map((c: any) => c.packId);
 
-      if (!alive) return;
+      // Fetch product rows
+      let productMap = new Map<number, ProductRow>();
+      if (productIds.length > 0) {
+        const { data: products, error: pErr } = await supabase
+          .from("productos")
+          .select("id,descripcion,codigo_venta,foto_url")
+          .in("id", productIds);
 
-      if (pErr) {
-        console.error("[carrito] productos error:", pErr);
-        setItems(
-          cleanCart.map((c) => ({
-            productId: c.productId,
-            titulo: `Producto #${c.productId}`,
-            codigo: null,
-            precio: 0,
-            qty: c.quantity,
-            image_url: null,
-          }))
-        );
-        setLoading(false);
-        return;
+        if (!alive) return;
+
+        if (pErr) {
+          console.error("[carrito] productos error:", pErr);
+        } else {
+          (products ?? []).forEach((p: any) => productMap.set(Number(p.id), p as ProductRow));
+        }
+      }
+
+      // Fetch pack rows (with items for subtitle)
+      let packMap = new Map<number, PackRow>();
+      if (packIds.length > 0) {
+        const { data: packs, error: pkErr } = await supabase
+          .from("packs")
+          .select(
+            `
+            id,
+            nombre,
+            codigo_venta,
+            foto_url,
+            pack_items (
+              cantidad,
+              productos (
+                id,
+                descripcion,
+                internal_id,
+                codigo_venta
+              )
+            )
+          `
+          )
+          .in("id", packIds);
+
+        if (!alive) return;
+
+        if (pkErr) {
+          console.error("[carrito] packs error:", pkErr);
+        } else {
+          (packs ?? []).forEach((p: any) => packMap.set(Number(p.id), p as PackRow));
+        }
       }
 
       const priceListId = await getDefaultPriceListId(supabase);
-      const pricesMap = priceListId ? await getPricesMap(supabase, priceListId, ids) : new Map();
+      const productPricesMap =
+        priceListId && productIds.length ? await getProductPricesMap(supabase, priceListId, productIds) : new Map();
+      const packPricesMap =
+        priceListId && packIds.length ? await getPackPricesMap(supabase, priceListId, packIds) : new Map();
 
-      const productMap = new Map<number, ProductRow>();
-      (products ?? []).forEach((p: any) => productMap.set(Number(p.id), p as ProductRow));
+      // Preserve cart order
+      const view: ViewItem[] = cleanCart.map((c: any) => {
+        if (c.type === "PACK") {
+          const packId = Number(c.packId);
+          const p = packMap.get(packId);
+          const unitPrice = packPricesMap.get(packId) ?? 0;
 
-      const view: ViewItem[] = cleanCart.map((c) => {
-        const p = productMap.get(c.productId);
-        const unitPrice = pricesMap.get(c.productId) ?? 0;
+          const list = p?.pack_items ?? [];
+          const totalUnits = (list ?? []).reduce((acc, it) => acc + Number(it?.cantidad ?? 0), 0);
+          const subtitle =
+            list?.length
+              ? `Incluye ${list.length} producto(s) • ${totalUnits || list.length} unidad(es)`
+              : "Pack";
+
+          return {
+            key: `PACK-${packId}`,
+            type: "PACK",
+            packId,
+            titulo: p?.nombre ?? `Pack #${packId}`,
+            codigo: p?.codigo_venta ?? null,
+            precio: unitPrice,
+            qty: Number(c.quantity ?? 1),
+            image_url: p?.foto_url ?? null,
+            subtitle,
+          };
+        }
+
+        // PRODUCT
+        const productId = Number(c.productId);
+        const p = productMap.get(productId);
+        const unitPrice = productPricesMap.get(productId) ?? 0;
 
         return {
-          productId: c.productId,
-          titulo: p?.descripcion ?? `Producto #${c.productId}`,
+          key: `PRODUCT-${productId}`,
+          type: "PRODUCT",
+          productId,
+          titulo: p?.descripcion ?? `Producto #${productId}`,
           codigo: p?.codigo_venta ?? null,
           precio: unitPrice,
-          qty: c.quantity,
+          qty: Number(c.quantity ?? 1),
           image_url: p?.foto_url ?? null,
+          subtitle: null,
         };
       });
 
+      if (!alive) return;
       setItems(view);
       setLoading(false);
     }
@@ -236,23 +357,37 @@ export default function CarritoClient() {
     };
   }, [cartItems, supabase, sessionReady, session]);
 
-  const inc = (productId: number) => {
-    const current = cartItems.find((x) => x.productId === productId)?.quantity ?? 0;
-    updateQuantity(productId, current + 1);
+  const inc = (it: ViewItem) => {
+    if (it.type === "PACK") {
+      const current = cartItems.find((x: any) => x.type === "PACK" && x.packId === it.packId)?.quantity ?? 0;
+      updatePackQuantity(it.packId, current + 1);
+      return;
+    }
+
+    const current = cartItems.find((x: any) => x.type === "PRODUCT" && x.productId === it.productId)?.quantity ?? 0;
+    updateProductQuantity(it.productId, current + 1);
   };
 
-  const dec = (productId: number) => {
-    const current = cartItems.find((x) => x.productId === productId)?.quantity ?? 0;
-    updateQuantity(productId, Math.max(1, current - 1));
+  const dec = (it: ViewItem) => {
+    if (it.type === "PACK") {
+      const current = cartItems.find((x: any) => x.type === "PACK" && x.packId === it.packId)?.quantity ?? 0;
+      updatePackQuantity(it.packId, Math.max(1, current - 1));
+      return;
+    }
+
+    const current = cartItems.find((x: any) => x.type === "PRODUCT" && x.productId === it.productId)?.quantity ?? 0;
+    updateProductQuantity(it.productId, Math.max(1, current - 1));
   };
 
-  const remove = (productId: number) => {
-    removeFromCart(productId);
+  const remove = (it: ViewItem) => {
+    if (it.type === "PACK") {
+      removePackFromCart(it.packId);
+      return;
+    }
+    removeProductFromCart(it.productId);
   };
 
-  const clear = () => {
-    clearCart();
-  };
+  const clear = () => clearCart();
 
   const total = items.reduce((acc, it) => acc + it.precio * it.qty, 0);
 
@@ -293,7 +428,7 @@ export default function CarritoClient() {
       <div className="cart-grid">
         <div className="cart-list">
           {items.map((it) => (
-            <div className="cart-item" key={it.productId}>
+            <div className="cart-item" key={it.key}>
               <div className="cart-item-left">
                 <img
                   className="cart-item-img"
@@ -301,26 +436,37 @@ export default function CarritoClient() {
                   alt={it.titulo}
                 />
                 <div className="cart-item-info">
-                  <div className="cart-item-name">{it.titulo}</div>
-                  <div className="cart-item-code">{it.codigo || ""}</div>
-                  <div className="cart-item-unit">S/ {it.precio.toFixed(2)} c/u</div>
+                  <div className="cart-item-name">
+                    {it.titulo}
+                    {it.type === "PACK" ? " (Pack)" : ""}
+                  </div>
+
+                  {it.codigo ? <div className="cart-item-code">{it.codigo}</div> : null}
+
+                  {it.type === "PACK" && it.subtitle ? (
+                    <div className="cart-item-code">{it.subtitle}</div>
+                  ) : null}
+
+                  <div className="cart-item-unit">
+                    S/ {it.precio.toFixed(2)} {it.type === "PACK" ? "pack" : "c/u"}
+                  </div>
                 </div>
               </div>
 
               <div className="cart-item-right">
                 <div className="cart-qty">
-                  <button onClick={() => dec(it.productId)} className="cart-qty-btn" aria-label="decrease">
+                  <button onClick={() => dec(it)} className="cart-qty-btn" aria-label="decrease">
                     −
                   </button>
                   <div className="cart-qty-num">{it.qty}</div>
-                  <button onClick={() => inc(it.productId)} className="cart-qty-btn" aria-label="increase">
+                  <button onClick={() => inc(it)} className="cart-qty-btn" aria-label="increase">
                     +
                   </button>
                 </div>
 
                 <div className="cart-item-price">
                   <div>S/ {(it.precio * it.qty).toFixed(2)}</div>
-                  <button onClick={() => remove(it.productId)} className="cart-remove">
+                  <button onClick={() => remove(it)} className="cart-remove">
                     Quitar
                   </button>
                 </div>

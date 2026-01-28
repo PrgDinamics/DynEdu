@@ -570,9 +570,10 @@ export default function ProductsClient({ initialProductos }: Props) {
             <Stack spacing={2}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField
-                  label="Código interno"
+                  label="Código Interno"
                   value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
+                  onChange={(e) => setCodigo(e.target.value)} 
+                  inputProps={{ readOnly: true }}
                   size="small"
                   fullWidth
                   disabled={!canManageProducts || loading}
@@ -745,7 +746,7 @@ export default function ProductsClient({ initialProductos }: Props) {
             <TableHead>
               <TableRow>
                 <TableCell>Código</TableCell>
-                <TableCell>Código venta</TableCell>
+                <TableCell>Código de Venta</TableCell>
                 <TableCell>Descripción</TableCell>
                 <TableCell>Editorial</TableCell>
                 <TableCell>ISBN</TableCell>

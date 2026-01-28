@@ -34,6 +34,11 @@ export type GeneralSettingsRules = {
   autoUpdateStockOnComplete: boolean;
 };
 
+/**
+ * (Deprecated / optional)
+ * Ya no lo usamos en el UI porque las notificaciones reales las manejamos por correos.
+ * Lo dejamos opcional por compatibilidad con settings antiguos guardados en DB.
+ */
 export type GeneralSettingsNotifications = {
   internalEmail: string;
   notifyOnOrderCompleted: boolean;
@@ -47,5 +52,7 @@ export type GeneralSettings = {
   branding: GeneralSettingsBranding;
   campaign: GeneralSettingsCampaign;
   rules: GeneralSettingsRules;
-  notifications: GeneralSettingsNotifications;
+
+  // ✅ ahora es opcional
+  notifications?: GeneralSettingsNotifications;
 };

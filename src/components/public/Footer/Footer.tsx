@@ -40,8 +40,8 @@ export default function Footer() {
               <li><Link href="/libros">Libros</Link></li>
               <li><Link href="/colegios">Colegios</Link></li>
               <li><Link href="/contacto">Contacto</Link></li>
+              <li><Link href="https://app.reclamovirtual.pe/libros/31cbc750-fc7d-4a13-bf6a-09a314e81979/Canalvirtual">Libro de Reclamaciones</Link></li>
               <li><Link href="/terminos-y-condiciones">Terminos y Condiciones</Link></li>
-
 
             </ul>
           </div>

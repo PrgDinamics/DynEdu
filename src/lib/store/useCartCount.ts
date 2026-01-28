@@ -4,6 +4,8 @@ import { useSyncExternalStore } from "react";
 import { CART_EVENT_NAME, CART_STORAGE_KEY, getCartCount } from "./cart";
 
 function subscribe(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+
   const onStorage = (e: StorageEvent) => {
     if (e.key === CART_STORAGE_KEY) cb();
   };
@@ -18,9 +20,5 @@ function subscribe(cb: () => void) {
 }
 
 export function useCartCount() {
-  return useSyncExternalStore(
-    subscribe,
-    () => getCartCount(),
-    () => 0
-  );
+  return useSyncExternalStore(subscribe, () => getCartCount(), () => 0);
 }

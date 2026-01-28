@@ -1,11 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import {
-  GeneralSettings,
-  GeneralSettingsCampaignStatus,
-  GeneralSettingsOrderEditStatus,
-} from "@/modules/settings/types";
+import {  GeneralSettings } from "@/modules/settings/types";
 
 import { revalidatePath } from "next/cache";
 

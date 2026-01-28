@@ -556,3 +556,156 @@
     margin-top: 0;
   }
 }
+
+
+/* ========================= */
+/* Tabs Libros / Packs */
+/* ========================= */
+.libros-tabs {
+  width: 92%;
+  max-width: 1200px;
+  margin: 10px auto 0;
+  display: flex;
+  gap: 10px;
+}
+
+.libros-tab {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.14);
+  background: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.libros-tab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(0,0,0,0.08);
+}
+
+.libros-tab.active {
+  background: rgba(84,45,160,0.12);
+  border-color: rgba(84,45,160,0.35);
+  color: #542da0;
+}
+
+/* ========================= */
+/* Simple modal (detalle pack) */
+/* ========================= */
+.simple-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.simple-modal {
+  width: 100%;
+  max-width: 640px;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(29,48,75,0.12);
+  box-shadow: 0 18px 45px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+.simple-modal-header {
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(29,48,75,0.10);
+}
+
+.simple-modal-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: #1d304b;
+}
+
+.simple-modal-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(29,48,75,0.65);
+}
+
+.simple-modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.14);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.simple-modal-desc {
+  padding: 12px 16px 0;
+  font-size: 13px;
+  color: rgba(29,48,75,0.75);
+}
+
+.simple-modal-list {
+  padding: 12px 16px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.simple-modal-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,48,75,0.10);
+  background: rgba(84,45,160,0.04);
+}
+
+.simple-modal-item-title {
+  font-size: 13px;
+  font-weight: 900;
+  color: #1d304b;
+}
+
+.simple-modal-item-sub {
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(29,48,75,0.65);
+  margin-top: 2px;
+}
+
+.simple-modal-item-qty {
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(29,48,75,0.85);
+  white-space: nowrap;
+}
+
+.simple-modal-footer {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid rgba(29,48,75,0.10);
+}
+
+.simple-modal-price {
+  font-size: 16px;
+  font-weight: 900;
+  color: #1d304b;
+}
+
+.catalog-updating {
+  font-weight: 900;
+  color: rgba(29, 48, 75, 0.55);
+}

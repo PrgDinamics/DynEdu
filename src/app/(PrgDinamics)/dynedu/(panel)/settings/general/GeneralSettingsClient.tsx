@@ -9,8 +9,6 @@ import {
   Typography,
   Stack,
   TextField,
-  Switch,
-  FormControlLabel,
   Button,
   Divider,
   Table,
@@ -20,7 +18,7 @@ import {
   TableRow,
   Chip,
   Snackbar,
-  Alert
+  Alert,
 } from "@mui/material";
 
 import type { GeneralSettings } from "@/modules/settings/types";
@@ -50,13 +48,14 @@ const GeneralSettingsClient: React.FC<Props> = ({
   const [saving, setSaving] = useState(false);
 
   const [campaigns, setCampaigns] = useState<CampaignRow[]>(initialCampaigns);
-  const [activeCampaign, setActiveCampaign] = useState<ActiveCampaignViewRow | null>(initialActiveCampaign);
+  const [activeCampaign, setActiveCampaign] =
+    useState<ActiveCampaignViewRow | null>(initialActiveCampaign);
   const [campaignBusyId, setCampaignBusyId] = useState<string | null>(null);
 
   const [toast, setToast] = useState<{
-  open: boolean;
-  message: string;
-  severity: "success" | "error" | "warning" | "info";
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "info" });
 
   const showToast = (
@@ -66,13 +65,17 @@ const GeneralSettingsClient: React.FC<Props> = ({
 
   const closeToast = () => setToast((t) => ({ ...t, open: false }));
 
-
   const nextDefault = useMemo(() => {
     const fallbackYear = new Date().getFullYear();
     const latest = campaigns?.[0];
 
-    const yearFromLatest = latest?.start_date ? Number(String(latest.start_date).slice(0, 4)) : fallbackYear;
-    const year = Number.isFinite(yearFromLatest) ? yearFromLatest + 1 : fallbackYear;
+    const yearFromLatest = latest?.start_date
+      ? Number(String(latest.start_date).slice(0, 4))
+      : fallbackYear;
+
+    const year = Number.isFinite(yearFromLatest)
+      ? yearFromLatest + 1
+      : fallbackYear;
 
     const start = `${year}-01-01`;
     const end = `${year}-12-31`;
@@ -170,20 +173,6 @@ const GeneralSettingsClient: React.FC<Props> = ({
     }
   };
 
-  // --- Notificaciones ---
-  const handleNotificationsChange = (
-    field: keyof GeneralSettings["notifications"],
-    value: string | boolean,
-  ) => {
-    setSettings((prev) => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [field]: value,
-      },
-    }));
-  };
-
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -203,7 +192,8 @@ const GeneralSettingsClient: React.FC<Props> = ({
         Configuración general
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Ajusta la información general de PRG Dinamics, gestiona campañas (año académico) y configura notificaciones.
+        Ajusta la información general de PRG Dinamics y gestiona campañas (año
+        académico).
       </Typography>
 
       {/* CAMPAÑAS */}
@@ -217,13 +207,20 @@ const GeneralSettingsClient: React.FC<Props> = ({
         }}
       >
         <CardContent>
-          <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2} mb={1}>
+          <Box
+            display="flex"
+            alignItems="flex-start"
+            justifyContent="space-between"
+            gap={2}
+            mb={1}
+          >
             <Box>
               <Typography variant="h6" fontWeight={600}>
                 Campañas
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                El Dashboard se filtra por la campaña <b>ACTIVA</b>. Solo puede existir 1 activa a la vez.
+                El Dashboard se filtra por la campaña <b>ACTIVA</b>. Solo puede
+                existir 1 activa a la vez.
               </Typography>
             </Box>
 
@@ -236,11 +233,13 @@ const GeneralSettingsClient: React.FC<Props> = ({
               </Typography>
               {activeCampaign ? (
                 <Typography variant="caption" color="text.secondary">
-                  {activeCampaign.start_date} → {activeCampaign.end_date} ({activeCampaign.timezone})
+                  {activeCampaign.start_date} → {activeCampaign.end_date} (
+                  {activeCampaign.timezone})
                 </Typography>
               ) : (
                 <Typography variant="caption" color="warning.main">
-                  No hay campaña activa. Activa una para que el Dashboard filtre correctamente.
+                  No hay campaña activa. Activa una para que el Dashboard filtre
+                  correctamente.
                 </Typography>
               )}
             </Box>
@@ -259,7 +258,9 @@ const GeneralSettingsClient: React.FC<Props> = ({
                 fullWidth
                 size="small"
                 value={newCampaign.name}
-                onChange={(e) => setNewCampaign((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setNewCampaign((p) => ({ ...p, name: e.target.value }))
+                }
               />
               <TextField
                 label="Inicio"
@@ -268,7 +269,9 @@ const GeneralSettingsClient: React.FC<Props> = ({
                 size="small"
                 InputLabelProps={{ shrink: true }}
                 value={newCampaign.start_date}
-                onChange={(e) => setNewCampaign((p) => ({ ...p, start_date: e.target.value }))}
+                onChange={(e) =>
+                  setNewCampaign((p) => ({ ...p, start_date: e.target.value }))
+                }
               />
               <TextField
                 label="Fin"
@@ -277,17 +280,25 @@ const GeneralSettingsClient: React.FC<Props> = ({
                 size="small"
                 InputLabelProps={{ shrink: true }}
                 value={newCampaign.end_date}
-                onChange={(e) => setNewCampaign((p) => ({ ...p, end_date: e.target.value }))}
+                onChange={(e) =>
+                  setNewCampaign((p) => ({ ...p, end_date: e.target.value }))
+                }
               />
             </Stack>
 
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }}>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={2}
+              alignItems={{ xs: "stretch", md: "center" }}
+            >
               <TextField
                 label="Timezone"
                 fullWidth
                 size="small"
                 value={newCampaign.timezone}
-                onChange={(e) => setNewCampaign((p) => ({ ...p, timezone: e.target.value }))}
+                onChange={(e) =>
+                  setNewCampaign((p) => ({ ...p, timezone: e.target.value }))
+                }
               />
 
               <Box flex={1} />
@@ -295,7 +306,12 @@ const GeneralSettingsClient: React.FC<Props> = ({
               <Button
                 variant="contained"
                 onClick={handleCreateCampaign}
-                disabled={campaignBusyId === "__create__" || !newCampaign.name.trim() || !newCampaign.start_date || !newCampaign.end_date}
+                disabled={
+                  campaignBusyId === "__create__" ||
+                  !newCampaign.name.trim() ||
+                  !newCampaign.start_date ||
+                  !newCampaign.end_date
+                }
                 sx={{ minWidth: 220 }}
               >
                 {campaignBusyId === "__create__" ? "Creando..." : "Crear campaña"}
@@ -407,18 +423,14 @@ const GeneralSettingsClient: React.FC<Props> = ({
                 fullWidth
                 size="small"
                 value={settings.company.name}
-                onChange={(e) =>
-                  handleCompanyChange("name", e.target.value)
-                }
+                onChange={(e) => handleCompanyChange("name", e.target.value)}
               />
               <TextField
                 label="Nombre comercial"
                 fullWidth
                 size="small"
                 value={settings.company.tradeName}
-                onChange={(e) =>
-                  handleCompanyChange("tradeName", e.target.value)
-                }
+                onChange={(e) => handleCompanyChange("tradeName", e.target.value)}
               />
             </Stack>
 
@@ -428,27 +440,21 @@ const GeneralSettingsClient: React.FC<Props> = ({
                 fullWidth
                 size="small"
                 value={settings.company.ruc}
-                onChange={(e) =>
-                  handleCompanyChange("ruc", e.target.value)
-                }
+                onChange={(e) => handleCompanyChange("ruc", e.target.value)}
               />
               <TextField
                 label="Teléfono"
                 fullWidth
                 size="small"
                 value={settings.company.phone}
-                onChange={(e) =>
-                  handleCompanyChange("phone", e.target.value)
-                }
+                onChange={(e) => handleCompanyChange("phone", e.target.value)}
               />
               <TextField
                 label="Correo de soporte"
                 fullWidth
                 size="small"
                 value={settings.company.email}
-                onChange={(e) =>
-                  handleCompanyChange("email", e.target.value)
-                }
+                onChange={(e) => handleCompanyChange("email", e.target.value)}
               />
             </Stack>
 
@@ -457,111 +463,7 @@ const GeneralSettingsClient: React.FC<Props> = ({
               fullWidth
               size="small"
               value={settings.company.address}
-              onChange={(e) =>
-                handleCompanyChange("address", e.target.value)
-              }
-            />
-          </Stack>
-        </CardContent>
-      </Card>
-
-
-
-      {/* NOTIFICACIONES */}
-      <Card
-        elevation={0}
-        sx={{
-          mb: 3,
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <CardContent>
-          <Typography variant="h6" fontWeight={600} mb={1}>
-            Notificaciones
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mb={2}>
-            Correos y eventos para los que se enviarán notificaciones.
-          </Typography>
-
-          <Stack spacing={2}>
-            <TextField
-              label="Correo(s) interno(s) de alerta"
-              helperText="Puedes ingresar varios correos separados por coma."
-              fullWidth
-              size="small"
-              value={settings.notifications.internalEmail}
-              onChange={(e) =>
-                handleNotificationsChange(
-                  "internalEmail",
-                  e.target.value,
-                )
-              }
-            />
-
-            <Divider />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.notifications.notifyOnOrderCompleted}
-                  onChange={(_, checked) =>
-                    handleNotificationsChange(
-                      "notifyOnOrderCompleted",
-                      checked,
-                    )
-                  }
-                />
-              }
-              label="Avisar cuando un pedido pase a COMPLETO"
-            />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.notifications.notifyOnStockLow}
-                  onChange={(_, checked) =>
-                    handleNotificationsChange(
-                      "notifyOnStockLow",
-                      checked,
-                    )
-                  }
-                />
-              }
-              label="Avisar cuando el stock esté bajo"
-            />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.notifications.notifyOnConsignCreated}
-                  onChange={(_, checked) =>
-                    handleNotificationsChange(
-                      "notifyOnConsignCreated",
-                      checked,
-                    )
-                  }
-                />
-              }
-              label="Avisar cuando se registre una consignación"
-            />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={
-                    settings.notifications.notifySchoolOnConsignApproved
-                  }
-                  onChange={(_, checked) =>
-                    handleNotificationsChange(
-                      "notifySchoolOnConsignApproved",
-                      checked,
-                    )
-                  }
-                />
-              }
-              label="Enviar correo al colegio cuando se apruebe una consignación"
+              onChange={(e) => handleCompanyChange("address", e.target.value)}
             />
           </Stack>
         </CardContent>
@@ -578,19 +480,22 @@ const GeneralSettingsClient: React.FC<Props> = ({
           {saving ? "Guardando..." : "Guardar cambios"}
         </Button>
       </Stack>
-      
+
       <Snackbar
         open={toast.open}
         autoHideDuration={2500}
         onClose={closeToast}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert onClose={closeToast} severity={toast.severity} variant="filled" sx={{ width: "100%" }}>
+        <Alert
+          onClose={closeToast}
+          severity={toast.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
           {toast.message}
         </Alert>
       </Snackbar>
-
-
     </Box>
   );
 };

@@ -55,6 +55,49 @@ export type ProductoUpdateInput = Partial<
 >;
 
 
+// ---------------------------------------------
+// PACKS
+// ---------------------------------------------
+
+export type PackItem = {
+  id?: number;
+  pack_id?: number;
+  producto_id: number;
+  cantidad: number;
+  productos?: {
+    id: number;
+    internal_id: string;
+    codigo_venta: string | null;
+    descripcion: string;
+    foto_url?: string | null;
+    anio_publicacion?: number | null;
+    editorial?: string | null;
+  } | null;
+};
+
+export type Pack = BaseEntity & {
+  internal_id: string | null;      // Código interno (puede ser PAC0001)
+  codigo: string | null;           // legacy (si lo sigues usando)
+  codigo_venta: string | null;     // Código venta como productos
+  nombre: string;
+  descripcion: string | null;
+  is_public: boolean;
+  foto_url?: string | null;
+  items?: PackItem[];
+};
+
+export type PackCreateInput = {
+  nombre: string;
+  descripcion?: string | null;
+  items: Array<{ producto_id: number; cantidad: number }>;
+  foto_url?: string | null;
+};
+
+export type PackUpdateInput = Partial<
+  Omit<Pack, "id" | "created_at" | "updated_at">
+>;
+
+
 // PROVEEDORES
 // ---------------------------------------------
 
@@ -183,4 +226,6 @@ export type UpdateColegioInput = {
   contacto_celular?: string;
   activo: boolean;
 };
+
+
 

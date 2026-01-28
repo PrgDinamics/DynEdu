@@ -37,6 +37,8 @@ import { formatDateTime } from "@/lib/dynedu/formatters";
 import { PedidoStatusChip } from "../components/forms/PedidoStatusChip";
 import { useSearchAndPagination } from "@/modules/dynedu/hooks/useSearchAndPagination";
 
+import PdfDownloadButton from "../components/pdf/PdfDownloadButton";
+
 import type {
   Pedido,
   PedidoEstado,
@@ -344,7 +346,7 @@ const OrdersClient: React.FC<OrdersClientProps> = ({
         (it: any) => ({
           id: it.id,
           productoCodigo:
-            it.productos?.internal_id ?? `ID ${it.producto_id}`,
+            it.productos?.codigo_venta ?? "-",
           productoDescripcion: it.productos?.descripcion ?? "",
           productoEditorial: it.productos?.editorial ?? null,
           solicitada: it.cantidad_solicitada ?? 0,
@@ -851,10 +853,12 @@ const OrdersClient: React.FC<OrdersClientProps> = ({
                           </Tooltip>
                         )}
 
-                        <Tooltip title="Descargar PDF (placeholder)">
-                          <IconButton size="small" color="success">
-                            <IconFileDownload size={18} />
-                          </IconButton>
+                        <Tooltip title="Descargar PDF">
+                          <PdfDownloadButton
+                            mode="icon"
+                            url={`/api/dynedu/pdf/pedidos/${p.id}`}
+                            filename={`pedido-${p.codigo}.pdf`}
+                            openInNewTab={true}/>
                         </Tooltip>
                       </Stack>
                     </TableCell>

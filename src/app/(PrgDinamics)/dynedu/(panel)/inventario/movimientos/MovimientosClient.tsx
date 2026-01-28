@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Box,
-  Chip,
+  Button,
   Paper,
   Stack,
   Table,
@@ -13,10 +13,9 @@ import {
   TableRow,
   TextField,
   Typography,
-  Button,
-  TablePagination,
 } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { useRouter } from "next/navigation";
 
 import { useSearchAndPagination } from "@/modules/dynedu/hooks/useSearchAndPagination";
 import type { InventoryMovementRow, InventoryMovementType } from "./actions";
@@ -30,6 +29,8 @@ const TYPE_LABEL: Record<InventoryMovementType, string> = {
   WEB_SALE: "Venta web",
   CONSIGNACION_SALIDA: "Consignación (salida)",
 };
+
+type Tab = "ALL" | InventoryMovementType;
 
 function formatDateTime(value: string | null) {
   if (!value) return "-";
@@ -45,18 +46,25 @@ function formatDateTime(value: string | null) {
 }
 
 export default function MovimientosClient({ initialRows }: Props) {
-  const [activeType, setActiveType] = useState<InventoryMovementType | "ALL">("ALL");
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("ALL");
 
   const counts = useMemo(() => {
-    const base = {
+    const base: Record<Tab, number> = {
       ALL: initialRows.length,
       WEB_RESERVE: 0,
       WEB_SALE: 0,
       CONSIGNACION_SALIDA: 0,
     };
-    for (const r of initialRows) base[r.movement_type] += 1;
+    for (const r of initialRows ?? []) base[r.movement_type] += 1;
     return base;
   }, [initialRows]);
+
+  // ✅ Igual que consignaciones: primero filtrar por tab
+  const filteredByTab = useMemo(() => {
+    if (tab === "ALL") return initialRows ?? [];
+    return (initialRows ?? []).filter((r) => r.movement_type === tab);
+  }, [initialRows, tab]);
 
   const {
     searchTerm,
@@ -64,21 +72,19 @@ export default function MovimientosClient({ initialRows }: Props) {
     page,
     setPage,
     rowsPerPage,
-    total,
+    filteredData,
     paginatedData,
   } = useSearchAndPagination<InventoryMovementRow>({
-    data: initialRows ?? [],
-    rowsPerPage: 15,
+    data: filteredByTab,
+    rowsPerPage: 10,
     sortFn: (a, b) => {
       const da = a.happened_at ? new Date(a.happened_at).getTime() : 0;
       const db = b.happened_at ? new Date(b.happened_at).getTime() : 0;
       return db - da; // newest first
     },
     filterFn: (row, qLower) => {
-      const passType = activeType === "ALL" ? true : row.movement_type === activeType;
-      if (!passType) return false;
-
-      if (!qLower.trim()) return true;
+      const q = String(qLower ?? "").toLowerCase().trim();
+      if (!q) return true;
 
       const hay = [
         row.product_code,
@@ -92,12 +98,15 @@ export default function MovimientosClient({ initialRows }: Props) {
         .join(" ")
         .toLowerCase();
 
-      return hay.includes(qLower);
+      return hay.includes(q);
     },
   });
 
+  const total = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 2, pt: 1.5 }}>
       <Typography variant="h4" sx={{ mb: 0.5, fontWeight: 700 }}>
         Movimientos
       </Typography>
@@ -105,47 +114,71 @@ export default function MovimientosClient({ initialRows }: Props) {
         Salidas por venta web, reservas y consignaciones.
       </Typography>
 
-      <Paper sx={{ p: 2, borderRadius: 3 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1.2}
-          alignItems={{ xs: "stretch", sm: "center" }}
-          justifyContent="space-between"
-          sx={{ mb: 2 }}
+      {/* ✅ Tabs estilo consignaciones (botones arriba) */}
+      <Stack direction="row" spacing={1} mb={2} flexWrap="wrap">
+        <Button
+          variant={tab === "ALL" ? "contained" : "outlined"}
+          onClick={() => {
+            setTab("ALL");
+            setPage(0);
+          }}
         >
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Chip
-              label={`Todos (${counts.ALL})`}
-              variant={activeType === "ALL" ? "filled" : "outlined"}
-              onClick={() => setActiveType("ALL")}
-              sx={{ mb: 0.5 }}
-            />
-            <Chip
-              label={`${TYPE_LABEL.WEB_SALE} (${counts.WEB_SALE})`}
-              variant={activeType === "WEB_SALE" ? "filled" : "outlined"}
-              onClick={() => setActiveType("WEB_SALE")}
-              sx={{ mb: 0.5 }}
-            />
-            <Chip
-              label={`${TYPE_LABEL.WEB_RESERVE} (${counts.WEB_RESERVE})`}
-              variant={activeType === "WEB_RESERVE" ? "filled" : "outlined"}
-              onClick={() => setActiveType("WEB_RESERVE")}
-              sx={{ mb: 0.5 }}
-            />
-            <Chip
-              label={`${TYPE_LABEL.CONSIGNACION_SALIDA} (${counts.CONSIGNACION_SALIDA})`}
-              variant={activeType === "CONSIGNACION_SALIDA" ? "filled" : "outlined"}
-              onClick={() => setActiveType("CONSIGNACION_SALIDA")}
-              sx={{ mb: 0.5 }}
-            />
-          </Stack>
+          Todos ({counts.ALL})
+        </Button>
+
+        <Button
+          variant={tab === "WEB_SALE" ? "contained" : "outlined"}
+          onClick={() => {
+            setTab("WEB_SALE");
+            setPage(0);
+          }}
+        >
+          {TYPE_LABEL.WEB_SALE} ({counts.WEB_SALE})
+        </Button>
+
+        <Button
+          variant={tab === "WEB_RESERVE" ? "contained" : "outlined"}
+          onClick={() => {
+            setTab("WEB_RESERVE");
+            setPage(0);
+          }}
+        >
+          {TYPE_LABEL.WEB_RESERVE} ({counts.WEB_RESERVE})
+        </Button>
+
+        <Button
+          variant={tab === "CONSIGNACION_SALIDA" ? "contained" : "outlined"}
+          onClick={() => {
+            setTab("CONSIGNACION_SALIDA");
+            setPage(0);
+          }}
+        >
+          {TYPE_LABEL.CONSIGNACION_SALIDA} ({counts.CONSIGNACION_SALIDA})
+        </Button>
+      </Stack>
+
+      <Paper sx={{ p: 2, borderRadius: 3 }}>
+        {/* Header count + search (igual consignaciones) */}
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", md: "center" }}
+          mb={2}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {total} movimiento(s)
+          </Typography>
 
           <TextField
             size="small"
             label="Buscar"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ width: { xs: "100%", sm: 320 } }}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(0);
+            }}
+            sx={{ width: { xs: "100%", sm: 360 } }}
           />
         </Stack>
 
@@ -162,7 +195,7 @@ export default function MovimientosClient({ initialRows }: Props) {
               <TableCell sx={{ fontWeight: 700 }}>Cliente/Colegio</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Distrito</TableCell>
               <TableCell sx={{ fontWeight: 700 }} align="right">
-                Acción
+                Acciones
               </TableCell>
             </TableRow>
           </TableHead>
@@ -187,6 +220,7 @@ export default function MovimientosClient({ initialRows }: Props) {
                   <TableCell>{formatDateTime(r.happened_at)}</TableCell>
                   <TableCell>{TYPE_LABEL[r.movement_type]}</TableCell>
                   <TableCell>{r.product_code ?? "-"}</TableCell>
+
                   <TableCell sx={{ maxWidth: 420 }}>
                     <span
                       style={{
@@ -196,21 +230,25 @@ export default function MovimientosClient({ initialRows }: Props) {
                         textOverflow: "ellipsis",
                         maxWidth: 420,
                       }}
+                      title={r.product_name ?? ""}
                     >
                       {r.product_name ?? "-"}
                     </span>
                   </TableCell>
+
                   <TableCell align="right" sx={{ color: qtyColor, fontWeight: 700 }}>
                     {qtyLabel}
                   </TableCell>
+
                   <TableCell>{r.counterparty ?? "-"}</TableCell>
                   <TableCell>{r.district ?? "-"}</TableCell>
+
                   <TableCell align="right">
                     <Button
                       size="small"
                       variant="outlined"
                       endIcon={<OpenInNewIcon />}
-                      onClick={() => window.open(link, "_blank")}
+                      onClick={() => router.push(link)} // ✅ misma pestaña
                     >
                       Ver
                     </Button>
@@ -229,19 +267,32 @@ export default function MovimientosClient({ initialRows }: Props) {
           </TableBody>
         </Table>
 
-        {total > rowsPerPage && (
-          <TablePagination
-            component="div"
-            count={total}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            rowsPerPageOptions={[rowsPerPage]}
-            labelRowsPerPage="Filas por página"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
-            sx={{ mt: 1 }}
-          />
-        )}
+        {/* ✅ Paginación estilo consignaciones */}
+        {total > rowsPerPage ? (
+          <Box mt={2} display="flex" justifyContent="flex-end" alignItems="center" gap={1}>
+            <Typography variant="caption" color="text.secondary">
+              Página {page + 1} de {totalPages}
+            </Typography>
+
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Anterior
+            </Button>
+
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={page + 1 >= totalPages}
+              onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+            >
+              Siguiente
+            </Button>
+          </Box>
+        ) : null}
       </Paper>
     </Box>
   );

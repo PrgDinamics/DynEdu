@@ -3,10 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabaseBrowserClient";
-import { listDepartments, listProvincesByDepartment, listDistrictsByProvince } from "@/lib/ubigeo/ubigeo";
+import {
+  listDepartments,
+  listProvincesByDepartment,
+  listDistrictsByProvince,
+} from "@/lib/ubigeo/ubigeo";
 import "./perfil.css";
 
-import { UserRound, IdCard, Phone, MapPin, Landmark, Save, Loader2, AlertCircle, Mail } from "lucide-react";
+import {
+  UserRound,
+  IdCard,
+  Phone,
+  MapPin,
+  Landmark,
+  Save,
+  Loader2,
+  AlertCircle,
+  Mail,
+  GraduationCap,
+} from "lucide-react";
 
 type BuyerRow = {
   id: string;
@@ -22,9 +37,18 @@ type BuyerRow = {
   reference: string | null;
   student_full_name: string | null;
   school_name: string | null;
+
+  // NEW
+  colegio_id: number | null;
 };
 
 type Option = { id: string; name: string };
+
+type ColegioOption = {
+  id: number;
+  nombre_comercial: string | null;
+  ruc: string | null;
+};
 
 function findIdByName(options: Option[], name: string) {
   const n = name.trim().toLowerCase();
@@ -44,6 +68,10 @@ export default function PerfilClient() {
 
   const [email, setEmail] = useState<string>("");
 
+  // colegios list
+  const [colegios, setColegios] = useState<ColegioOption[]>([]);
+  const [colegioId, setColegioId] = useState<string>(""); // store as string for <select>
+
   // form fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -61,16 +89,28 @@ export default function PerfilClient() {
   const [provinceId, setProvinceId] = useState("");
   const [districtId, setDistrictId] = useState("");
 
-  const provinces = useMemo<Option[]>(() => (departmentId ? listProvincesByDepartment(departmentId) : []), [departmentId]);
-  const districts = useMemo<Option[]>(() => (provinceId ? listDistrictsByProvince(provinceId) : []), [provinceId]);
+  const provinces = useMemo<Option[]>(
+    () => (departmentId ? listProvincesByDepartment(departmentId) : []),
+    [departmentId]
+  );
+  const districts = useMemo<Option[]>(
+    () => (provinceId ? listDistrictsByProvince(provinceId) : []),
+    [provinceId]
+  );
 
   const departmentName = useMemo(
     () => departments.find((d) => d.id === departmentId)?.name || "",
     [departments, departmentId]
   );
 
-  const provinceName = useMemo(() => provinces.find((p) => p.id === provinceId)?.name || "", [provinces, provinceId]);
-  const districtName = useMemo(() => districts.find((d) => d.id === districtId)?.name || "", [districts, districtId]);
+  const provinceName = useMemo(
+    () => provinces.find((p) => p.id === provinceId)?.name || "",
+    [provinces, provinceId]
+  );
+  const districtName = useMemo(
+    () => districts.find((d) => d.id === districtId)?.name || "",
+    [districts, districtId]
+  );
 
   const [studentFullName, setStudentFullName] = useState("");
   const [schoolName, setSchoolName] = useState("");
@@ -94,10 +134,25 @@ export default function PerfilClient() {
       if (!alive) return;
       setEmail(user.email || "");
 
+      // load colegios (for discounts)
+      const { data: colData, error: colErr } = await supabase
+        .from("colegios")
+        .select("id,nombre_comercial,ruc")
+        .order("nombre_comercial", { ascending: true });
+
+      if (!alive) return;
+      if (colErr) {
+        // no hard-fail, but show warning
+        console.warn("Failed to load colegios:", colErr.message);
+        setColegios([]);
+      } else {
+        setColegios((colData as ColegioOption[]) ?? []);
+      }
+
       const { data } = await supabase
         .from("buyers")
         .select(
-          "id,first_name,last_name,document_type,document_number,phone,address_line1,address_line2,district,city,reference,student_full_name,school_name"
+          "id,first_name,last_name,document_type,document_number,phone,address_line1,address_line2,district,city,reference,student_full_name,school_name,colegio_id"
         )
         .eq("id", user.id)
         .maybeSingle();
@@ -119,7 +174,10 @@ export default function PerfilClient() {
       setStudentFullName(buyer?.student_full_name ?? "");
       setSchoolName(buyer?.school_name ?? "");
 
-      // best-effort map
+      // colegio selection (optional)
+      setColegioId(buyer?.colegio_id != null ? String(buyer.colegio_id) : "");
+
+      // best-effort ubigeo map
       const city = buyer?.city || "";
       const dist = buyer?.district || "";
 
@@ -181,8 +239,12 @@ export default function PerfilClient() {
         return;
       }
 
-      const cityValue = [departmentName, provinceName].filter(Boolean).join(" - ") || "Lima";
+      const cityValue =
+        [departmentName, provinceName].filter(Boolean).join(" - ") || "Lima";
       const districtValue = districtName || "";
+
+      const colegioIdValue =
+        colegioId && colegioId.trim() ? Number(colegioId) : null;
 
       const { error: upErr } = await supabase.from("buyers").upsert(
         {
@@ -199,6 +261,9 @@ export default function PerfilClient() {
           reference: reference.trim() || null,
           student_full_name: studentFullName.trim() || null,
           school_name: schoolName.trim() || null,
+
+          // NEW
+          colegio_id: colegioIdValue,
         },
         { onConflict: "id" }
       );
@@ -206,7 +271,6 @@ export default function PerfilClient() {
       if (upErr) throw upErr;
 
       setOkMsg("Perfil guardado ✅");
-      // go back to next
       window.location.href = nextPath;
     } catch (e: any) {
       setError(e?.message || "No se pudo guardar.");
@@ -242,7 +306,10 @@ export default function PerfilClient() {
             <label>Nombres</label>
             <div className="perfilInput">
               <UserRound size={16} />
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
             </div>
           </div>
 
@@ -250,7 +317,10 @@ export default function PerfilClient() {
             <label>Apellidos</label>
             <div className="perfilInput">
               <UserRound size={16} />
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
             </div>
           </div>
 
@@ -258,7 +328,10 @@ export default function PerfilClient() {
             <label>Tipo doc</label>
             <div className="perfilInput">
               <IdCard size={16} />
-              <select value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
+              <select
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value)}
+              >
                 <option value="DNI">DNI</option>
                 <option value="CE">CE</option>
                 <option value="PASSPORT">PASSPORT</option>
@@ -270,7 +343,10 @@ export default function PerfilClient() {
             <label>N° doc</label>
             <div className="perfilInput">
               <IdCard size={16} />
-              <input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
+              <input
+                value={documentNumber}
+                onChange={(e) => setDocumentNumber(e.target.value)}
+              />
             </div>
           </div>
 
@@ -286,7 +362,10 @@ export default function PerfilClient() {
             <label>Dirección</label>
             <div className="perfilInput">
               <MapPin size={16} />
-              <input value={address1} onChange={(e) => setAddress1(e.target.value)} />
+              <input
+                value={address1}
+                onChange={(e) => setAddress1(e.target.value)}
+              />
             </div>
           </div>
 
@@ -294,7 +373,10 @@ export default function PerfilClient() {
             <label>Dirección extra</label>
             <div className="perfilInput">
               <MapPin size={16} />
-              <input value={address2} onChange={(e) => setAddress2(e.target.value)} />
+              <input
+                value={address2}
+                onChange={(e) => setAddress2(e.target.value)}
+              />
             </div>
           </div>
 
@@ -332,7 +414,9 @@ export default function PerfilClient() {
                   setDistrictId("");
                 }}
               >
-                <option value="">{departmentId ? "Selecciona" : "Primero departamento"}</option>
+                <option value="">
+                  {departmentId ? "Selecciona" : "Primero departamento"}
+                </option>
                 {provinces.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -346,8 +430,14 @@ export default function PerfilClient() {
             <label>Distrito</label>
             <div className="perfilInput">
               <Landmark size={16} />
-              <select value={districtId} disabled={!provinceId} onChange={(e) => setDistrictId(e.target.value)}>
-                <option value="">{provinceId ? "Selecciona" : "Primero provincia"}</option>
+              <select
+                value={districtId}
+                disabled={!provinceId}
+                onChange={(e) => setDistrictId(e.target.value)}
+              >
+                <option value="">
+                  {provinceId ? "Selecciona" : "Primero provincia"}
+                </option>
                 {districts.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -361,13 +451,41 @@ export default function PerfilClient() {
             <label>Referencia</label>
             <div className="perfilInput">
               <MapPin size={16} />
-              <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Ej. Frente al parque" />
+              <input
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Ej. Frente al parque"
+              />
+            </div>
+          </div>
+
+          {/* NEW: Colegio */}
+          <div className="perfilField perfilWide">
+            <label>Colegio (para descuentos)</label>
+            <div className="perfilInput">
+              <GraduationCap size={16} />
+              <select
+                value={colegioId}
+                onChange={(e) => setColegioId(e.target.value)}
+              >
+                <option value="">— No especificar —</option>
+                {colegios.map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.nombre_comercial || `Colegio #${c.id}`}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
 
         <div className="perfilActions">
-          <button className="perfilBtn" type="button" onClick={onSave} disabled={saving}>
+          <button
+            className="perfilBtn"
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+          >
             {saving ? (
               <>
                 <Loader2 className="spin" size={16} /> Guardando…

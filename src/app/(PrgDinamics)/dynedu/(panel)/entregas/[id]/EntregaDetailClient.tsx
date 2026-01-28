@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useMemo, useState, useTransition } from "react";
 import {
   Box,
@@ -10,9 +11,11 @@ import {
   CardHeader,
   Chip,
   Divider,
+  IconButton,
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   Stepper,
   Step,
@@ -25,8 +28,14 @@ import {
   FormControlLabel,
 } from "@mui/material";
 
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+
 import type { DeliveryOrderDetail } from "./actions";
-import { updateDeliveryForOrderAction } from "./actions";
+import { closeSaleForOrderAction, updateBoletaNumberForOrderAction, updateDeliveryForOrderAction } from "./actions";
+
+import PdfDownloadButton from "@/app/(PrgDinamics)/dynedu/(panel)/components/pdf/PdfDownloadButton";
 
 type Props = {
   order: DeliveryOrderDetail | null;
@@ -59,6 +68,7 @@ type InfoDialogState = {
 
 export default function EntregaDetailClient({ order }: Props) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   // ✅ Modal info (reemplaza alert)
   const [infoDialog, setInfoDialog] = useState<InfoDialogState>({
@@ -112,6 +122,12 @@ export default function EntregaDetailClient({ order }: Props) {
   const [deliveryDate, setDeliveryDate] = useState<string>(order.delivery_date ?? "");
   const [note, setNote] = useState<string>(order.fulfillment_note ?? "");
 
+  // ✅ Paso 5 (interno): Venta cerrada
+  const [boletaNumber, setBoletaNumber] = useState<string>(order.boleta_number ?? "");
+  const [isEditingBoleta, setIsEditingBoleta] = useState<boolean>(false);
+  const isClosed = Boolean(order.is_closed);
+  const canCloseStep = order.fulfillment_status === "DELIVERED";
+
   const activeStep = useMemo(() => stepIndex(fulfillmentStatus), [fulfillmentStatus]);
 
   const buildChangeSummary = (statusChanged: boolean, dateChanged: boolean) => {
@@ -161,6 +177,7 @@ export default function EntregaDetailClient({ order }: Props) {
           sendEmail ? "Entrega actualizada ✅" : "Entrega actualizada ✅",
           "success"
         );
+        router.refresh();
       } catch (e) {
         console.error("[EntregaDetailClient] save error", e);
         openInfo("Ocurrió un error al guardar la entrega.", "error");
@@ -180,9 +197,16 @@ export default function EntregaDetailClient({ order }: Props) {
           </Typography>
         </Stack>
 
-        <Button component={Link} href="/dynedu/entregas" variant="outlined">
-          Volver
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <PdfDownloadButton
+            url={`/api/dynedu/pdf/entregas/${order.id}`}
+            filename={`entrega-${order.id}.pdf`}
+            openInNewTab
+          />
+          <Button component={Link} href="/dynedu/entregas" variant="outlined">
+            Volver
+          </Button>
+        </Stack>
       </Stack>
 
       <Card elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
@@ -239,6 +263,128 @@ export default function EntregaDetailClient({ order }: Props) {
             sx={{ mt: 2 }}
           />
 
+
+          {canCloseStep && (
+            <Card variant="outlined" sx={{ mt: 2, borderRadius: 2 }}>
+              <CardHeader
+                title="Paso 5 — Venta cerrada"
+                subheader="Requiere N° de boleta para cerrar venta."
+              />
+              <CardContent>
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={2}
+                  alignItems={{ xs: "stretch", md: "center" }}
+                >
+                  <Box sx={{ flex: 1, maxWidth: { md: 560 } }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="N° de boleta"
+                      placeholder="Ej: B001-000123"
+                      value={boletaNumber}
+                      onChange={(e) => setBoletaNumber(e.target.value)}
+                      disabled={!isEditingBoleta}
+                    />
+                  </Box>
+
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                      label={isClosed ? "Cerrada" : "Abierta"}
+                      color={isClosed ? "success" : "warning"}
+                      sx={{ fontWeight: 800 }}
+                    />
+
+                    {!isEditingBoleta ? (
+                      <Tooltip title="Editar boleta">
+                        <IconButton
+                          onClick={() => setIsEditingBoleta(true)}
+                          size="small"
+                          color="primary"
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    ) : (
+                      <>
+                        <Tooltip title="Cancelar">
+                          <IconButton
+                            onClick={() => {
+                              setBoletaNumber(order.boleta_number ?? "");
+                              setIsEditingBoleta(false);
+                            }}
+                            size="small"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="success"
+                          disabled={isPending}
+                          onClick={() => {
+                            startTransition(async () => {
+                              try {
+                                const res = await updateBoletaNumberForOrderAction({
+                                  orderId: order.id,
+                                  boletaNumber: boletaNumber ? boletaNumber : null,
+                                });
+                                if (!res.success) {
+                                  openInfo(res.error ?? "No se pudo guardar la boleta", "error");
+                                  return;
+                                }
+                                openInfo("Boleta actualizada ✅", "success");
+                                setIsEditingBoleta(false);
+                                router.refresh();
+                              } catch (e) {
+                                console.error("[EntregaDetailClient] save boleta error", e);
+                                openInfo("Ocurrió un error al guardar.", "error");
+                              }
+                            });
+                          }}
+                        >
+                          Guardar boleta
+                        </Button>
+                      </>
+                    )}
+
+                    {!isClosed && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="warning"
+                        disabled={isPending || !boletaNumber?.trim()}
+                        onClick={() => {
+                          startTransition(async () => {
+                            try {
+                              const res = await closeSaleForOrderAction({
+                                orderId: order.id,
+                                boletaNumber,
+                              });
+                              if (!res.success) {
+                                openInfo(res.error ?? "No se pudo cerrar la venta", "warning");
+                                return;
+                              }
+                              openInfo("Venta cerrada ✅", "success");
+                              setIsEditingBoleta(false);
+                              router.refresh();
+                            } catch (e) {
+                              console.error("[EntregaDetailClient] close sale error", e);
+                              openInfo("Ocurrió un error al cerrar.", "error");
+                            }
+                          });
+                        }}
+                      >
+                        Cerrar venta
+                      </Button>
+                    )}
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+          )}
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} mt={2}>
             <Button variant="contained" onClick={openConfirmBeforeSave} disabled={isPending}>
               {isPending ? "Guardando..." : "Guardar"}

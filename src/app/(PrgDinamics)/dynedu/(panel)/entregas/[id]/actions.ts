@@ -153,6 +153,11 @@ export type DeliveryOrderDetail = {
   fulfillment_note: string | null;
   fulfillment_updated_at: string | null;
 
+  // ✅ Paso 5
+  boleta_number?: string | null;
+  is_closed?: boolean | null;
+  closed_at?: string | null;
+
   created_at: string;
 
   items: DeliveryOrderItem[];
@@ -181,6 +186,9 @@ export async function fetchDeliveryOrderDetail(orderId: string) {
         "delivery_date",
         "fulfillment_note",
         "fulfillment_updated_at",
+        "boleta_number",
+        "is_closed",
+        "closed_at",
         "created_at",
       ].join(",")
     )
@@ -211,7 +219,7 @@ export async function fetchDeliveryOrderDetail(orderId: string) {
     ...(order as any),
     items: (items ?? []) as any,
     events: (events ?? []) as any,
-  };
+  } as DeliveryOrderDetail;
 }
 
 export type UpdateDeliveryInput = {
@@ -220,7 +228,7 @@ export type UpdateDeliveryInput = {
   deliveryDate: string | null; // YYYY-MM-DD
   note: string | null;
 
-  // ✅ nuevo: si quieres enviar correo o no (decidido por el modal del client)
+  // UI decides (modal)
   sendEmail?: boolean;
 };
 
@@ -229,9 +237,13 @@ export async function updateDeliveryForOrderAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { orderId, fulfillmentStatus, deliveryDate, note } = input;
+
+    if (!isUuid(String(orderId ?? ""))) {
+      return { success: false, error: "Orden inválida" };
+    }
+
     const now = new Date().toISOString();
 
-    // Read previous values (for change detection + email)
     const { data: prev, error: prevErr } = await supabaseAdmin
       .from("orders")
       .select("customer_email, customer_name, fulfillment_status, delivery_date, fulfillment_note")
@@ -247,6 +259,8 @@ export async function updateDeliveryForOrderAction(
 
     const statusChanged = prevStatus !== fulfillmentStatus;
     const dateChanged = prevDate !== newDate;
+    const noteChanged =
+      String((prev as any)?.fulfillment_note ?? "") !== String(note ?? "");
 
     const { error: updErr } = await supabaseAdmin
       .from("orders")
@@ -264,22 +278,27 @@ export async function updateDeliveryForOrderAction(
       return { success: false, error: "No se pudo actualizar la entrega" };
     }
 
-    // Timeline event (si cambió algo importante)
-    if (statusChanged || dateChanged || String((prev as any)?.fulfillment_note ?? "") !== String(note ?? "")) {
-      const { error: evInsErr } = await supabaseAdmin.from("order_fulfillment_events").insert([
-        {
-          order_id: orderId,
-          status: fulfillmentStatus,
-          note: note ?? null,
-          created_at: now,
-          created_by: null,
-        },
-      ]);
+    // ✅ Evento SIEMPRE que cambie algo (y si falla, devolvemos error)
+    if (statusChanged || dateChanged || noteChanged) {
+      const { error: evInsErr } = await supabaseAdmin
+        .from("order_fulfillment_events")
+        .insert([
+          {
+            order_id: orderId,
+            status: fulfillmentStatus,
+            note: note ?? null,
+            created_at: now,
+            created_by: null,
+          },
+        ]);
 
-      if (evInsErr) console.error("[updateDeliveryForOrderAction] event insert error:", evInsErr.message);
+      if (evInsErr) {
+        console.error("[updateDeliveryForOrderAction] event insert error:", evInsErr.message);
+        return { success: false, error: "No se pudo registrar el evento de seguimiento" };
+      }
     }
 
-    // ✅ Email SOLO si cambió estado o fecha Y el usuario aceptó en el modal
+    // Email (si se aceptó) solo cuando cambie estado/fecha
     const allowEmail = input.sendEmail !== false;
     const shouldEmail = allowEmail && (statusChanged || dateChanged);
 
@@ -308,6 +327,81 @@ export async function updateDeliveryForOrderAction(
     return { success: true };
   } catch (e: any) {
     console.error("[updateDeliveryForOrderAction] unexpected:", e?.message || e);
+    return { success: false, error: "Error inesperado" };
+  }
+}
+
+export type UpdateBoletaInput = {
+  orderId: string;
+  boletaNumber: string | null;
+};
+
+export async function updateBoletaNumberForOrderAction(
+  input: UpdateBoletaInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { orderId, boletaNumber } = input;
+    if (!isUuid(String(orderId ?? ""))) return { success: false, error: "Orden inválida" };
+
+    const now = new Date().toISOString();
+    const value = String(boletaNumber ?? "").trim();
+
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        boleta_number: value ? value : null,
+        updated_at: now,
+      })
+      .eq("id", orderId);
+
+    if (error) {
+      console.error("[updateBoletaNumberForOrderAction] error:", error.message);
+      return { success: false, error: "No se pudo guardar la boleta" };
+    }
+    return { success: true };
+  } catch (e: any) {
+    console.error("[updateBoletaNumberForOrderAction] unexpected:", e?.message || e);
+    return { success: false, error: "Error inesperado" };
+  }
+}
+
+export type CloseSaleInput = {
+  orderId: string;
+  boletaNumber: string;
+};
+
+export async function closeSaleForOrderAction(
+  input: CloseSaleInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { orderId, boletaNumber } = input;
+    if (!isUuid(String(orderId ?? ""))) return { success: false, error: "Orden inválida" };
+
+    const now = new Date().toISOString();
+    const bn = String(boletaNumber ?? "").trim();
+
+    if (!bn) {
+      return { success: false, error: "Ingresa el número de boleta para cerrar la venta." };
+    }
+
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        boleta_number: bn,
+        is_closed: true,
+        closed_at: now,
+        updated_at: now,
+      })
+      .eq("id", orderId);
+
+    if (error) {
+      console.error("[closeSaleForOrderAction] error:", error.message);
+      return { success: false, error: "No se pudo cerrar la venta" };
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    console.error("[closeSaleForOrderAction] unexpected:", e?.message || e);
     return { success: false, error: "Error inesperado" };
   }
 }

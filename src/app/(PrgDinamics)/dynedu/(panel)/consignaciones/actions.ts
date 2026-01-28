@@ -23,6 +23,7 @@ export type ProductoBasic = {
   descripcion: string | null;
   editorial: string | null;
   isbn: string | null;
+  codigo_venta: string | null;
 };
 
 export type ConsignacionItemRow = {
@@ -816,7 +817,7 @@ export async function closeConsignacionAction(
     // Read items + product labels
     const { data: items, error: itemsErr } = await supabaseAdmin
       .from("consignacion_items")
-      .select("producto_id,cantidad,cantidad_aprobada,cantidad_vendida,cantidad_devuelta, product:productos(internal_id,descripcion)")
+      .select("producto_id,cantidad,cantidad_aprobada,cantidad_vendida,cantidad_devuelta, product:productos(codigo_venta,descripcion)")
       .eq("consignacion_id", id);
 
     if (itemsErr) {

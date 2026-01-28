@@ -1,5 +1,5 @@
 "use server";
-
+//productos
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabaseClient";
 

@@ -24,7 +24,6 @@ const NAV_LINKS = [
   { href: "/libros", label: "Libros" },
   { href: "https://colegios.dynamiceducationperu.com", label: "Colegios" },
   { href: "/contacto", label: "Contacto" },
-  { href: "/libro-de-reclamaciones", label: "Libro de Reclamaciones" },
 ];
 
 export default function Navbar() {

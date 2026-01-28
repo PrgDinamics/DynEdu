@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import "./mis-compras.css";
-import { Mail, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, Package, ChevronDown, ChevronUp, ShoppingBag } from "lucide-react";
 
 type OrderRow = {
   id: string;
@@ -26,6 +26,16 @@ type FulfillmentEventRow = {
   status: "REGISTERED" | "PACKING" | "DELIVERY" | "DELIVERED";
   note: string | null;
   created_at: string;
+};
+
+type OrderItemRow = {
+  order_id: string;
+  producto_id: number | null; // null = pack header
+  title_snapshot: string;
+  codigo_venta_snapshot: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
 };
 
 const stepOrder: OrderRow["fulfillment_status"][] = ["REGISTERED", "PACKING", "DELIVERY", "DELIVERED"];
@@ -54,17 +64,32 @@ function mpStatusLabel(s: string) {
   return `Pago: ${s}`;
 }
 
+function formatMoney(amount: number, currency: string) {
+  const cur = (currency || "PEN").toUpperCase();
+  try {
+    return new Intl.NumberFormat("es-PE", {
+      style: "currency",
+      currency: cur,
+      minimumFractionDigits: 2,
+    }).format(Number(amount ?? 0));
+  } catch {
+    return `${Number(amount ?? 0).toFixed(2)} ${cur}`;
+  }
+}
+
 export default function MisComprasClient({
   userEmail,
   initialOrders,
   initialPayments,
   initialEvents,
+  initialItems,
   initialError,
 }: {
   userEmail: string;
   initialOrders: OrderRow[];
   initialPayments: PaymentRow[];
   initialEvents: FulfillmentEventRow[];
+  initialItems: OrderItemRow[];
   initialError: string | null;
 }) {
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
@@ -83,6 +108,15 @@ export default function MisComprasClient({
     }
     return map;
   }, [initialEvents]);
+
+  const itemsByOrder = useMemo(() => {
+    const map: Record<string, OrderItemRow[]> = {};
+    for (const it of initialItems) {
+      if (!map[it.order_id]) map[it.order_id] = [];
+      map[it.order_id].push(it);
+    }
+    return map;
+  }, [initialItems]);
 
   return (
     <div className="mcPage">
@@ -114,8 +148,25 @@ export default function MisComprasClient({
           {initialOrders.map((o) => {
             const pay = paymentsByOrder[o.id];
             const events = eventsByOrder[o.id] ?? [];
+            const rawItems = itemsByOrder[o.id] ?? [];
             const stepIndex = Math.max(0, stepOrder.indexOf(o.fulfillment_status));
             const isOpen = openOrderId === o.id;
+
+            // ✅ PACK RULE:
+            const hasPackHeader = rawItems.some((it) => it.producto_id == null);
+
+            const items = rawItems.filter((it) => {
+              const isPackHeader = it.producto_id == null;
+              const looksLikePackComponent = String(it.title_snapshot || "").includes("(Pack)");
+              const isZeroLine = Number(it.line_total ?? 0) === 0;
+
+              if (!hasPackHeader) return true;
+              if (isPackHeader) return true;
+              if (looksLikePackComponent || isZeroLine) return false;
+              return true;
+            });
+
+            const itemsSubtotal = items.reduce((acc, it) => acc + Number(it.line_total ?? 0), 0);
 
             return (
               <div key={o.id} className="mcCard">
@@ -125,19 +176,13 @@ export default function MisComprasClient({
                     <div className="mcMeta">
                       <span>{formatDate(o.created_at)}</span>
                       <span>•</span>
-                      <span>
-                        Total: {Number(o.total).toFixed(2)} {o.currency}
-                      </span>
+                      <span>Total: {formatMoney(Number(o.total ?? 0), o.currency)}</span>
                     </div>
                   </div>
 
                   <div className="mcRight">
                     <div className="mcPill">{pay ? mpStatusLabel(pay.status) : "Pago: —"}</div>
-                    <button
-                      type="button"
-                      className="mcBtn"
-                      onClick={() => setOpenOrderId(isOpen ? null : o.id)}
-                    >
+                    <button type="button" className="mcBtn" onClick={() => setOpenOrderId(isOpen ? null : o.id)}>
                       {isOpen ? (
                         <>
                           Cerrar <ChevronUp size={16} />
@@ -169,7 +214,53 @@ export default function MisComprasClient({
 
                 {isOpen && (
                   <div className="mcDetails">
-                    <div className="mcDetailTitle">Seguimiento</div>
+                    <div className="mcDetailTitle mcDetailTitleRow">
+                      <span className="mcDetailTitleLeft">
+                        <ShoppingBag size={16} />
+                        Detalle de compra
+                      </span>
+                      <span className="mcDetailTitleRight">
+                        {items.length ? formatMoney(itemsSubtotal, o.currency) : "—"}
+                      </span>
+                    </div>
+
+                    {items.length === 0 ? (
+                      <div className="mcDetailEmpty">No se encontraron items para esta orden.</div>
+                    ) : (
+                      <div className="mcItems">
+                        {items.map((it, idx) => {
+                          const isPackHeader = it.producto_id == null;
+
+                          return (
+                            <div key={idx} className="mcItemRow">
+                              <div className="mcItemMain">
+                                <div className="mcItemTitle">
+                                  {it.title_snapshot}
+                                  {isPackHeader && <span style={{ marginLeft: 8, opacity: 0.8 }}>(Pack)</span>}
+                                </div>
+                                <div className="mcItemSub">
+                                  {it.codigo_venta_snapshot ? (
+                                    <span>Código: {it.codigo_venta_snapshot}</span>
+                                  ) : (
+                                    <span />
+                                  )}
+                                  <span className="mcItemQty">x{Number(it.quantity ?? 0)}</span>
+                                </div>
+                              </div>
+
+                              <div className="mcItemPrices">
+                                <div className="mcItemUnit">{formatMoney(Number(it.unit_price ?? 0), o.currency)}</div>
+                                <div className="mcItemTotal">{formatMoney(Number(it.line_total ?? 0), o.currency)}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="mcDetailTitle" style={{ marginTop: 14 }}>
+                      Seguimiento
+                    </div>
 
                     {events.length === 0 ? (
                       <div className="mcDetailEmpty">Aún no hay actualizaciones.</div>

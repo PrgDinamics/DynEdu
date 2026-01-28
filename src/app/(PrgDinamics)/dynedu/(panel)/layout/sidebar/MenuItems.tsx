@@ -16,7 +16,9 @@ import {
   IconSchool,
   IconActivity,
   IconShoppingCart,
-  IconBook
+  IconBook,
+  IconPercentage,
+  IconClipboardCheck
 } from "@tabler/icons-react";
 import { uniqueId } from "lodash";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
@@ -54,19 +56,29 @@ const Menuitems = [
     href: "/dynedu/packs",
     permissionKey: "canViewPacks",
   },
-  {
-    id: uniqueId(),
-    title: "Catalogo De Precios",
-    icon: AttachMoneyIcon,
-    href: "/dynedu/precios",
-    permissionKey: "canViewPriceCatalog",
-  },
+
   {
     id: uniqueId(),
     title: "Proveedores",
     icon: IconBuilding,
     href: "/dynedu/proveedores",
     permissionKey: "canViewSuppliers",
+  },
+
+  { navlabel: true, subheader: "CATÁLOGO DE PRECIOS" },
+  {
+    id: uniqueId(),
+    title: "Precio de Lista",
+    icon: AttachMoneyIcon,
+    href: "/dynedu/precios",
+    permissionKey: "canViewPriceCatalog",
+  },
+    {
+    id: uniqueId(),
+    title: "Promociones",
+    icon: IconPercentage,
+    href: "/dynedu/promociones",
+    permissionKey: "canViewPriceCatalog",
   },
 
   { navlabel: true, subheader: "INVENTARIO" },
@@ -96,7 +108,7 @@ const Menuitems = [
   {
     id: uniqueId(),
     title: "Tracking",
-    icon: IconClipboardText,
+    icon: IconClipboardCheck,
     href: "/dynedu/tracking",
     permissionKey: "canViewTracking",
   },
@@ -146,14 +158,14 @@ const Menuitems = [
   },
   {
     id: uniqueId(),
-    title: "Usuarios y roles",
+    title: "Usuarios y Roles",
     icon: IconUsers,
     href: "/dynedu/settings/usuario-roles",
     permissionAnyOf: ["canManageUsers", "canManageRoles"],
   },
   {
     id: "config-usuario-colegio",
-    title: "Registro Colegio",
+    title: "Colegios",
     href: "/dynedu/settings/usuario-colegio",
     icon: IconSchool,
     permissionKey: "canManageSchoolRegistry",

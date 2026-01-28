@@ -21,8 +21,14 @@ import {
   Typography,
 } from "@mui/material";
 
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+
+
 import { SectionCard } from "../components/forms/SectionCard";
 import { useSearchAndPagination } from "@/modules/dynedu/hooks/useSearchAndPagination";
+
+import PdfDownloadButton from "@/app/(PrgDinamics)/dynedu/(panel)/components/pdf/PdfDownloadButton";
+
 
 import type { ConsignacionWithItems } from "./actions";
 import {
@@ -426,7 +432,10 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
                 <TableCell align="right">{c.totals?.totalItems ?? c.items?.length ?? 0}</TableCell>
                 <TableCell align="right">{c.totals?.totalUnits ?? 0}</TableCell>
                 <TableCell align="right">
-                  <Button size="small" variant="outlined" onClick={() => openDetail(c)}>
+                  <Button size="small" 
+                  variant="outlined" 
+                  endIcon={<OpenInNewIcon />}
+                  onClick={() => openDetail(c)}>
                     Ver detalle
                   </Button>
                 </TableCell>
@@ -592,7 +601,7 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
 
                 <TableBody>
                   {(selected.items || []).map((it) => {
-                    const codigo = it.product?.internal_id || "—";
+                    const code = it.product?.codigo_venta || "—";
                     const desc = it.product?.descripcion || "—";
 
                     const solicitada = Number(it.cantidad ?? 0);
@@ -602,7 +611,7 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
                       const aprobada = approvedByItemId[it.id] ?? solicitada;
                       return (
                         <TableRow key={it.id}>
-                          <TableCell>{codigo}</TableCell>
+                          <TableCell>{code}</TableCell>
                           <TableCell>{desc}</TableCell>
                           <TableCell align="right">{solicitada}</TableCell>
                           <TableCell align="right">
@@ -629,7 +638,7 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
 
                       return (
                         <TableRow key={it.id}>
-                          <TableCell>{codigo}</TableCell>
+                          <TableCell>{code}</TableCell>
                           <TableCell>{desc}</TableCell>
                           <TableCell align="right">{enviada}</TableCell>
                           <TableCell align="right">
@@ -666,10 +675,9 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
                       );
                     }
 
-                    // CERRADA / ANULADA: solo lectura
                     return (
                       <TableRow key={it.id}>
-                        <TableCell>{codigo}</TableCell>
+                        <TableCell>{code}</TableCell>
                         <TableCell>{desc}</TableCell>
                         <TableCell align="right">{enviada}</TableCell>
                         <TableCell align="right">{Number(it.cantidad_devuelta ?? 0)}</TableCell>
@@ -677,6 +685,8 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
                       </TableRow>
                     );
                   })}
+
+
 
                   {(selected.items || []).length === 0 ? (
                     <TableRow>
@@ -711,7 +721,16 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
           ) : null}
         </DialogContent>
 
+
+
         <DialogActions>
+          {selected ? (
+            <PdfDownloadButton
+              url={`/api/dynedu/pdf/consignaciones/${selected.id}`}
+              filename={`consignacion-${selected.id}.pdf`}
+            />
+          ) : null}
+
           <Button variant="outlined" onClick={closeDetail} disabled={isPending}>
             Cerrar
           </Button>
@@ -741,6 +760,7 @@ function ConsignacionesClientInner({ consignaciones }: { consignaciones: Consign
             </>
           ) : null}
         </DialogActions>
+
       </Dialog>
     </Box>
   );

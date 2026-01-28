@@ -29,6 +29,7 @@
     "lucide-react": "^0.562.0",
     "next": "^16.0.9",
     "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.17.2",
     "peru-ubigeo": "^0.0.3",
     "react": "^19.2.2",
     "react-apexcharts": "1.8.0",
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@types/lodash": "4.17.20",
+    "@types/pdfkit": "^0.17.4",
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",

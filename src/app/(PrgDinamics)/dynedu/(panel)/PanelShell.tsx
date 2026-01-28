@@ -10,19 +10,21 @@ import NoAccess from "./components/error/NoAccess";
 export type PermissionMap = Record<string, boolean>;
 
 // 🔒 Map de rutas => permisos requeridos (edítalo cuando agregues módulos)
+
 const ROUTE_PERMS: Array<{ startsWith: string; anyOf: string[] }> = [
   // GENERAL
   { startsWith: "/dynedu/dashboard", anyOf: ["canViewDashboard"] },
   { startsWith: "/dynedu/actividad", anyOf: ["canViewActivity"] },
 
   // CATÁLOGO
-  { startsWith: "/dynedu/productos", anyOf: ["canViewProducts"] },
+  { startsWith: "/dynedu/productos", anyOf: ["canViewProducts", "canManageProducts"] },
   { startsWith: "/dynedu/packs", anyOf: ["canViewPacks"] },
-  {
-    startsWith: "/dynedu/precios",
-    anyOf: ["canViewPriceCatalog", "canManagePriceCatalog"],
-  },
   { startsWith: "/dynedu/proveedores", anyOf: ["canViewSuppliers"] },
+
+  //CATALOGO DE PRECIOS
+  { startsWith: "/dynedu/precios", anyOf: ["canViewPriceCatalog", "canManagePriceCatalog"]  },
+  { startsWith: "/dynedu/promociones", anyOf: ["canViewPriceCatalog", "canManagePriceCatalog"]  },
+
 
   // INVENTARIO
   { startsWith: "/dynedu/inventario/stock", anyOf: ["canViewStock"] },
@@ -39,7 +41,7 @@ const ROUTE_PERMS: Array<{ startsWith: string; anyOf: string[] }> = [
 
   // CONFIG
   { startsWith: "/dynedu/settings/general", anyOf: ["canManageGeneralSettings"] },
-  { startsWith: "/dynedu/settings/usuario-roles", anyOf: ["canManageUsers", "canManageRoles"] },
+  { startsWith: "/dynedu/settings/usuario-roles", anyOf: ["canManageRoles"] },
   { startsWith: "/dynedu/settings/usuario-colegio", anyOf: ["canManageSchoolRegistry"] },
 ];
 
@@ -75,6 +77,8 @@ export default function PanelShell({
 
   const [isSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  console.log("[PanelShell] pathname:", pathname);
+  console.log("[PanelShell] permissions:", permissions);
 
   // ✅ Decide si esta ruta requiere permisos
   const access = useMemo(() => {

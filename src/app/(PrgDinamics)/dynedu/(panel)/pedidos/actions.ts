@@ -332,6 +332,7 @@ export async function fetchPedidoDetalle(
         cantidad_recibida,
         productos (
           internal_id,
+          codigo_venta,
           descripcion,
           editorial
         )
