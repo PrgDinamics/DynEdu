@@ -12,13 +12,10 @@ export default function HomePage() {
         <Hero />
         <ScrollRevealPromo imageSrc="/images/web/READERS.png"/>
       </div>
-
-      <About />
-
       <About />
       <Books />
       <Suspense fallback={<div style={{ padding: 24 }}>Cargando...</div>}>
-        <Contact />
+      <Contact />
       </Suspense>
     </>
   );

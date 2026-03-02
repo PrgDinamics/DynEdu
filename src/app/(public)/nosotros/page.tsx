@@ -11,10 +11,9 @@ export default function Page() {
             <h1>Educación con orden, calidad y compromiso</h1>
 
             <p>
-              Somos un equipo enfocado en el desarrollo y distribución de materiales educativos
-              para instituciones escolares. Nuestro objetivo es que colegios y familias tengan
-              una experiencia clara: selección simple, packs ordenados, entregas confiables y
-              seguimiento durante el año académico.
+              En Dynamic Education, nuestra misión es elevar el estándar de la enseñanza del inglés en el Perú. Nacimos con la convicción de que cada estudiante merece aprender con herramientas de clase mundial; por ello, seleccionamos y distribuimos los mejores recursos educativos de editoriales líderes globales como National Geographic Learning, Pearson y Cambridge.
+              No solo entregamos libros; somos aliados estratégicos de las instituciones educativas. Nos apasiona facilitar el acceso a materiales de alta calidad y brindar el soporte necesario para que la implementación de estos programas sea un éxito en el aula, transformando la experiencia de aprendizaje de alumnos y docentes.
+
             </p>
 
             <div className="heroBadges">
