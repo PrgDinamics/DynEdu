@@ -49,7 +49,7 @@ export default async function MisComprasPage() {
   }
 
   // ✅ SOLO COMPRAS CONFIRMADAS (ajusta estados según tu enum real)
-  const visibleStatuses = ["PAID", "PREPARING", "SHIPPED", "DELIVERED", "REFUND"];
+  const visibleStatuses = ["PAYMENT_PENDING", "PAID", "PREPARING", "SHIPPED", "DELIVERED", "REFUNDED"];
 
   const { data: ordersData, error: ordersErr } = await supabase
     .from("orders")
@@ -164,3 +164,4 @@ export default async function MisComprasPage() {
     />
   );
 }
+
