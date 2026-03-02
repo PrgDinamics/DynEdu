@@ -27,18 +27,11 @@ export default function About() {
             <h2 className="aboutTitle">Quiénes somos</h2>
 
             <p className="aboutText">
-              En <strong>PRG Dinamics</strong> desarrollamos y distribuimos
-              materiales educativos para instituciones escolares. Trabajamos con
-              enfoque pedagógico, producción cuidada y una operación ordenada que
-              asegura entregas confiables durante el año académico.
+              En <strong>Dynamic Education</strong>, nuestra misión es elevar el estándar de la enseñanza del inglés en el Perú. Nacimos con la convicción de que cada estudiante merece aprender con herramientas de clase mundial; por ello, seleccionamos y distribuimos los mejores recursos educativos de editoriales líderes globales como National Geographic Learning, Pearson y Cambridge.
             </p>
 
             <p className="aboutText">
-              Acompañamos a colegios, docentes y familias con{" "}
-              <strong>packs</strong>, <strong>catálogos</strong> y procesos de{" "}
-              <strong>gestión</strong> pensados para simplificar la
-              implementación: desde la selección del material hasta la logística
-              y seguimiento.
+              No solo entregamos libros; somos aliados estratégicos de las instituciones educativas. Nos apasiona facilitar el acceso a materiales de alta calidad y brindar el soporte necesario para que la implementación de estos programas sea un éxito en el aula, transformando la experiencia de aprendizaje de alumnos y docentes.
             </p>
 
             <div className="aboutFeatures">

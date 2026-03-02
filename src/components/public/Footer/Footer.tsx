@@ -53,17 +53,17 @@ export default function Footer() {
             <div className="footer-contact">
               <div className="footer-contactItem">
                 <span className="footer-dot" />
-                <span>Email: contacto@prgdynamics.com</span>
+                <span>Email: servicioalcliente@dynamiceducationperu.com</span>
               </div>
 
               <div className="footer-contactItem">
                 <span className="footer-dot" />
-                <span>Teléfono: +51 999 999 999</span>
+                <span>Teléfono: (+51) 992287699 - 991780211 </span>
               </div>
 
               <div className="footer-contactItem">
                 <span className="footer-dot" />
-                <span>Lima, Perú</span>
+                <span>Stand 133 Marina Plaza (Av. La Marina 1602)</span>
               </div>
             </div>
           </div>

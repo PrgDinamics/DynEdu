@@ -64,14 +64,14 @@
 }
 
 .hero-title {
-  font-size: clamp(30px, 4.2vw, 52px);
+  font-size: clamp(30px, 4.2vw, 20px);
   line-height: 1.15;
   margin: 0 0 18px;
   letter-spacing: -0.4px;
 }
 
 .hero-subtitle {
-  font-size: clamp(15px, 1.5vw, 18px);
+  font-size: clamp(15px, 1.5vw, 10px);
   margin: 0 0 26px;
   opacity: 0.95;
   max-width: 52ch;

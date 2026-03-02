@@ -125,7 +125,7 @@ export default function Contact() {
               </span>
               <div>
                 <div className="info-label">Correo</div>
-                <div className="info-value">contacto@prgdynamics.com</div>
+                <div className="info-value">servicioalcliente@dynamiceducationperu.com</div>
               </div>
             </div>
 
@@ -135,7 +135,7 @@ export default function Contact() {
               </span>
               <div>
                 <div className="info-label">Teléfono</div>
-                <div className="info-value">+51 999 999 999</div>
+                <div className="info-value">(+51) 992287699 - 991780211</div>
               </div>
             </div>
 
@@ -145,7 +145,7 @@ export default function Contact() {
               </span>
               <div>
                 <div className="info-label">Ubicación</div>
-                <div className="info-value">Lima, Perú</div>
+                <div className="info-value">Stand 133 Marina Plaza (Av. La Marina 1602)</div>
               </div>
             </div>
           </div>

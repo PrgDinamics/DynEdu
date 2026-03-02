@@ -14,22 +14,15 @@ export default function Hero() {
 
         <div className="hero-content hero-content--center">
           <h1 className="hero-title">
-            Soluciones editoriales
-            <br />
-            para instituciones educativas
+          Conectando a tus alumnos con el conocimiento que el mundo exige
           </h1>
 
-          <p className="hero-subtitle">
-            Materiales educativos diseñados con calidad, confianza y compromiso.
-          </p>
 
           <div className="hero-buttons hero-buttons--center">
             <Link href="/libros" className="hero-btn hero-btn--primary">
               Ver libros
             </Link>
-            <Link href="/colegios" className="hero-btn hero-btn--secondary">
-              Servicios
-            </Link>
+
           </div>
         </div>
       </div>
