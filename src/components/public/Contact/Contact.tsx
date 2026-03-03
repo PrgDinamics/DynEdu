@@ -110,7 +110,7 @@ export default function Contact() {
           <div className="contact-pill">CONTACTO</div>
 
           <h2 className="contactTitle">
-            Coordina tu campaña con <span>PRG Dinamics</span>
+            Coordina tu campaña con <span>Dynamic Education</span>
           </h2>
 
           <p className="contact-subtitle">
@@ -254,3 +254,4 @@ export default function Contact() {
     </section>
   );
 }
+
