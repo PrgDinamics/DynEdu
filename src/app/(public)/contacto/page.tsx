@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import Contact from "@/components/public/Contact/Contact";
 
 export const metadata = {
-  title: "Contacto | PRG Dinamics",
-  description: "Coordina tu campaña escolar y solicita cotizaciones con PRG Dinamics.",
+  title: "Contacto | DynEdu",
+  description: "Coordina tu campaña escolar y solicita cotizaciones con Dynamic Education.",
 };
 
 export default function Page() {
@@ -13,3 +13,4 @@ export default function Page() {
     </Suspense>
   );
 }
+
