@@ -71,7 +71,7 @@ function orderStatusEsFromEn(en: string) {
       return "CANCELADO";
     case "FAILED":
       return "FALLIDO";
-    case "REFUND":
+    case "REFUNDED":
       return "REEMBOLSO";
     case "PAYMENT_PENDING":
     default:
@@ -442,14 +442,34 @@ export async function POST(req: Request) {
     const expected = process.env.MP_WEBHOOK_SECRET || "";
 
     if (expected && secret !== expected) {
-      return NextResponse.json({ error: "INVALID_WEBHOOK_SECRET" }, { status: 401 });
+      // Return 200 to avoid MP retry storms; still ignore the event
+      return NextResponse.json({ ok: true, ignored: "INVALID_WEBHOOK_SECRET" });
     }
 
-    // 2) Parse webhook body
+    // 2) Parse webhook payload (support BODY + QUERY PARAMS)
     const body = await req.json().catch(() => ({} as any));
-    const paymentId: string | undefined = body?.data?.id || body?.id;
 
-    if (!paymentId) return NextResponse.json({ ok: true });
+    // MP can send:
+    // - body.data.id
+    // - body.id
+    // - ?type=payment&data.id=123
+    // - ?topic=payment&id=123
+    const paymentId = String(
+      body?.data?.id ??
+        body?.id ??
+        url.searchParams.get("data.id") ??
+        url.searchParams.get("id") ??
+        ""
+    ).trim();
+
+    const topic = String(url.searchParams.get("type") || url.searchParams.get("topic") || "").trim();
+
+    if (!paymentId) return NextResponse.json({ ok: true, ignored: "missing_payment_id" });
+
+    // Optional: ignore non-payment topics if present
+    if (topic && topic !== "payment") {
+      return NextResponse.json({ ok: true, ignored: `topic:${topic}` });
+    }
 
     // 3) Fetch canonical payment from Mercado Pago
     const mpPayment = await fetchMpPayment(String(paymentId));
@@ -460,7 +480,7 @@ export async function POST(req: Request) {
     const orderId = String(mpPayment?.external_reference || "");
     const merchantOrderId = mpPayment?.order?.id ? String(mpPayment.order.id) : null;
 
-    if (!orderId) return NextResponse.json({ ok: true });
+    if (!orderId) return NextResponse.json({ ok: true, ignored: "missing_external_reference" });
 
     // 3.1) Read previous payment status (idempotency / transition detection)
     const { data: existingPayment, error: readPayErr } = await supabaseAdmin

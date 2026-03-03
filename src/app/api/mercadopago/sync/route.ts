@@ -17,7 +17,7 @@ function orderStatusEsFromEn(en: string) {
       return "CANCELADO";
     case "FAILED":
       return "FALLIDO";
-    case "REFUND":
+    case "REFUNDED":
       return "REEMBOLSO";
     case "PAYMENT_PENDING":
     default:
