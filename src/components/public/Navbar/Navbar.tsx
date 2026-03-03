@@ -148,7 +148,7 @@ export default function Navbar() {
       <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
         <div className="nav-container">
           <Link href="/" className="logo">
-            PRG Dinamics
+            Dynamic Education
           </Link>
 
           <div className="nav-links">
@@ -239,7 +239,7 @@ export default function Navbar() {
         <div className="nav-mobile-card" role="dialog" aria-modal="true">
           <div className="nav-mobile-header">
             <div className="nav-mobile-brand">
-              <span className="nav-mobile-title">PRG Dinamics</span>
+              <span className="nav-mobile-title">Dynamic Education</span>
             </div>
 
             <button
@@ -304,3 +304,4 @@ export default function Navbar() {
     </>
   );
 }
+
