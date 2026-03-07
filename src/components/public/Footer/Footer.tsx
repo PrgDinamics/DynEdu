@@ -10,7 +10,7 @@ export default function Footer() {
           <div className="footer-col footer-brand">
             <img
               src="/images/logos/de-logo-white.png"
-              alt="PRG Dinamics"
+              alt="Dynamic Education"
               className="footer-logo"
               loading="lazy"
             />
@@ -19,15 +19,7 @@ export default function Footer() {
             </p>
 
             <div className="footer-social">
-              <a className="footer-socialBtn" href="#" aria-label="LinkedIn">
-                in
-              </a>
-              <a className="footer-socialBtn" href="#" aria-label="WhatsApp">
-                wa
-              </a>
-              <a className="footer-socialBtn" href="#" aria-label="X">
-                x
-              </a>
+              
             </div>
           </div>
 
@@ -70,9 +62,10 @@ export default function Footer() {
         </div>
 
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} PRG Dinamics. Todos los derechos reservados.</p>
+          <p>© {new Date().getFullYear()} Dynamic Education. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>
   );
 }
+
