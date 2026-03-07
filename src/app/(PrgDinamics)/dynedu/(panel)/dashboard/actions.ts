@@ -60,7 +60,6 @@ export type DashboardData = {
     }>;
   };
 
-  // ✅ NEW: ventas web ya ENTREGADAS (y con pago aprobado)
   deliveredWebSales: Array<{
     id: string;
     customer_name: string | null;
@@ -96,26 +95,24 @@ async function getActiveCampaignForDashboard(): Promise<ActiveCampaign> {
 export async function getDashboardData(input?: { mode?: DashboardMode }): Promise<DashboardData> {
   const mode: DashboardMode = input?.mode ?? "closed";
 
-  // NOTE: Este dashboard es "estimado" basado en consignaciones + precios.
   const note =
     mode === "closed"
       ? "Cálculo basado en consignaciones CERRADAS (estimado)."
       : "Cálculo basado en consignaciones CERRADAS + ABIERTAS (estimado).";
 
-  // Try to find default price list
-  const { data: defaultPriceList } = await supabaseAdmin
+  const { data: defaultPriceList, error: plErr } = await supabaseAdmin
     .from("price_lists")
     .select("id")
-    .eq("is_default", true)
+    .eq("es_predeterminada", true)
     .maybeSingle();
+
+  if (plErr) console.error("Error fetching default price list:", plErr);
 
   const usedPriceListId = defaultPriceList?.id ?? null;
 
   const todayStart = startOfDayISO(new Date());
   const activeCampaign = await getActiveCampaignForDashboard();
 
-  // Range used for ALL KPIs + charts
-  // - If there's no active campaign, fallback to "month-to-date".
   const rangeStart =
     activeCampaign?.start_ts_utc ??
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
@@ -126,49 +123,53 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     ? `${activeCampaign.start_date} → ${activeCampaign.end_date} (${activeCampaign.timezone})`
     : "Mes actual (fallback)";
 
-  // 1) KPI month sales (estimated)
-  const allowedStatuses =
-    mode === "closed"
-      ? ["CERRADA"]
-      : ["CERRADA", "ABIERTA", "EN_CURSO", "PENDIENTE", "APROBADA", "DEVOLUCION_PENDIENTE"];
+  const allowedEstados = mode === "closed" ? ["CERRADA"] : ["CERRADA", "ABIERTA"];
 
-  const { data: consignacionesCampaign } = await supabaseAdmin
+  // 1) KPI sales/units
+  const { data: consignacionesCampaign, error: consErr } = await supabaseAdmin
     .from("consignaciones")
-    .select("id, created_at, status, colegio_id")
+    .select("id, created_at, estado, colegio_id")
     .gte("created_at", rangeStart)
     .lt("created_at", rangeEndExclusive)
-    .in("status", allowedStatuses);
+    .in("estado", allowedEstados);
+
+  if (consErr) console.error("Error fetching consignacionesCampaign:", consErr);
 
   const consignacionIds = (consignacionesCampaign ?? []).map((c: any) => c.id);
 
-  // items
-  const { data: consignacionItemsMonth } =
+  const { data: consignacionItemsMonth, error: itemsErr } =
     consignacionIds.length === 0
-      ? { data: [] as any[] }
+      ? ({ data: [] as any[], error: null } as any)
       : await supabaseAdmin
           .from("consignacion_items")
-          .select("consignacion_id, producto_id, cantidad")
+          .select("consignacion_id, producto_id, cantidad_vendida")
           .in("consignacion_id", consignacionIds);
 
-  // price list items
-  const { data: prices } =
+  if (itemsErr) console.error("Error fetching consignacionItemsMonth:", itemsErr);
+
+  const { data: prices, error: priceErr } =
     usedPriceListId == null
-      ? { data: [] as any[] }
+      ? ({ data: [] as any[], error: null } as any)
       : await supabaseAdmin
           .from("price_list_items")
-          .select("producto_id, price")
+          .select("producto_id, precio")
           .eq("price_list_id", usedPriceListId);
 
+  if (priceErr) console.error("Error fetching price_list_items:", priceErr);
+
   const priceByProduct = new Map<string, number>();
-  (prices ?? []).forEach((p: any) => priceByProduct.set(p.producto_id, Number(p.price ?? 0)));
+  (prices ?? []).forEach((p: any) =>
+    priceByProduct.set(String(p.producto_id), Number(p.precio ?? 0))
+  );
 
   let campaignUnits = 0;
   let campaignSales = 0;
 
   for (const it of consignacionItemsMonth ?? []) {
-    const qty = Number((it as any).cantidad ?? 0);
+    const qty = Number((it as any).cantidad_vendida ?? 0);
+    if (qty <= 0) continue;
     campaignUnits += qty;
-    const price = priceByProduct.get((it as any).producto_id) ?? 0;
+    const price = priceByProduct.get(String((it as any).producto_id)) ?? 0;
     campaignSales += qty * price;
   }
 
@@ -177,23 +178,26 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
       ? campaignSales / consignacionesCampaign.length
       : 0;
 
-  // top client (by colegio) month
+  // Top colegio (cliente)
   const salesByColegio = new Map<string, number>();
+  const consById = new Map<string, any>();
+  (consignacionesCampaign ?? []).forEach((c: any) => consById.set(String(c.id), c));
+
   for (const it of consignacionItemsMonth ?? []) {
-    const price = priceByProduct.get((it as any).producto_id) ?? 0;
-    const consignacion = (consignacionesCampaign ?? []).find(
-      (c: any) => c.id === (it as any).consignacion_id,
-    );
-    if (!consignacion?.colegio_id) continue;
-    const prev = salesByColegio.get(consignacion.colegio_id) ?? 0;
-    salesByColegio.set(
-      consignacion.colegio_id,
-      prev + Number((it as any).cantidad ?? 0) * price,
-    );
+    const qty = Number((it as any).cantidad_vendida ?? 0);
+    if (qty <= 0) continue;
+
+    const cons = consById.get(String((it as any).consignacion_id));
+    if (!cons?.colegio_id) continue;
+
+    const price = priceByProduct.get(String((it as any).producto_id)) ?? 0;
+    const prev = salesByColegio.get(String(cons.colegio_id)) ?? 0;
+    salesByColegio.set(String(cons.colegio_id), prev + qty * price);
   }
 
   let topClientId: string | null = null;
   let topClientSales = 0;
+
   for (const [k, v] of salesByColegio.entries()) {
     if (v > topClientSales) {
       topClientSales = v;
@@ -201,41 +205,59 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     }
   }
 
-  const { data: topClientRow } =
+  const { data: topClientRow, error: topErr } =
     topClientId == null
-      ? { data: null as any }
-      : await supabaseAdmin.from("colegios").select("nombre").eq("id", topClientId).maybeSingle();
+      ? ({ data: null as any, error: null } as any)
+      : await supabaseAdmin
+          .from("colegios")
+          .select("nombre_comercial, ruc")
+          .eq("id", Number(topClientId))
+          .maybeSingle();
 
-  const topClientName = topClientRow?.nombre ?? null;
+  if (topErr) console.error("Error fetching topClientRow:", topErr);
 
-  // 2) daily sales (campaign) (estimated)
-  const { data: consignacionesRange } = await supabaseAdmin
+  const topClientName =
+    topClientRow
+      ? `${topClientRow.nombre_comercial ?? "—"} (RUC: ${topClientRow.ruc ?? "—"})`
+      : null;
+
+  // 2) daily sales (campaign)
+  const { data: consignacionesRange, error: consRangeErr } = await supabaseAdmin
     .from("consignaciones")
-    .select("id, created_at")
+    .select("id, created_at, estado")
     .gte("created_at", rangeStart)
     .lt("created_at", rangeEndExclusive)
-    .in("status", allowedStatuses);
+    .in("estado", allowedEstados);
+
+  if (consRangeErr) console.error("Error fetching consignacionesRange:", consRangeErr);
 
   const c30ids = (consignacionesRange ?? []).map((c: any) => c.id);
 
-  const { data: items30d } =
+  const { data: items30d, error: items30Err } =
     c30ids.length === 0
-      ? { data: [] as any[] }
+      ? ({ data: [] as any[], error: null } as any)
       : await supabaseAdmin
           .from("consignacion_items")
-          .select("consignacion_id, producto_id, cantidad")
+          .select("consignacion_id, producto_id, cantidad_vendida")
           .in("consignacion_id", c30ids);
 
+  if (items30Err) console.error("Error fetching items30d:", items30Err);
+
   const createdAtByConsId = new Map<string, string>();
-  (consignacionesRange ?? []).forEach((c: any) => createdAtByConsId.set(c.id, c.created_at));
+  (consignacionesRange ?? []).forEach((c: any) =>
+    createdAtByConsId.set(String(c.id), c.created_at)
+  );
 
   const dayAmount = new Map<string, number>();
   for (const it of items30d ?? []) {
-    const createdAt = createdAtByConsId.get((it as any).consignacion_id);
+    const qty = Number((it as any).cantidad_vendida ?? 0);
+    if (qty <= 0) continue;
+
+    const createdAt = createdAtByConsId.get(String((it as any).consignacion_id));
     if (!createdAt) continue;
     const day = String(createdAt).slice(0, 10);
-    const price = priceByProduct.get((it as any).producto_id) ?? 0;
-    const amount = Number((it as any).cantidad ?? 0) * price;
+    const price = priceByProduct.get(String((it as any).producto_id)) ?? 0;
+    const amount = qty * price;
     dayAmount.set(day, (dayAmount.get(day) ?? 0) + amount);
   }
 
@@ -243,13 +265,14 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, amount]) => ({ date, amount }));
 
-  // 3) top products month (estimated)
+  // 3) top products
   const unitsByProduct = new Map<string, number>();
   const amountByProduct = new Map<string, number>();
 
   for (const it of consignacionItemsMonth ?? []) {
     const pid = String((it as any).producto_id);
-    const qty = Number((it as any).cantidad ?? 0);
+    const qty = Number((it as any).cantidad_vendida ?? 0);
+    if (qty <= 0) continue;
 
     unitsByProduct.set(pid, (unitsByProduct.get(pid) ?? 0) + qty);
 
@@ -257,19 +280,26 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
     amountByProduct.set(pid, (amountByProduct.get(pid) ?? 0) + qty * price);
   }
 
+  // ✅ FIX: no mostrar productos con 0 unidades
   const topProdIds = Array.from(unitsByProduct.entries())
+    .filter(([, u]) => (u ?? 0) > 0)
     .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
     .slice(0, 5)
     .map(([id]) => id);
 
-  const { data: prodRows } =
+  const { data: prodRows, error: prodErr } =
     topProdIds.length === 0
-      ? { data: [] as any[] }
-      : await supabaseAdmin.from("productos").select("id, descripcion").in("id", topProdIds);
+      ? ({ data: [] as any[], error: null } as any)
+      : await supabaseAdmin
+          .from("productos")
+          .select("id, descripcion")
+          .in("id", topProdIds.map((x) => Number(x)));
+
+  if (prodErr) console.error("Error fetching top products:", prodErr);
 
   const prodNameById = new Map<string, string>();
   (prodRows ?? []).forEach((p: any) =>
-    prodNameById.set(p.id, p.descripcion ?? `Producto ${p.id}`),
+    prodNameById.set(String(p.id), p.descripcion ?? `Producto ${p.id}`)
   );
 
   const topProductsCampaign = topProdIds.map((pid) => ({
@@ -279,76 +309,113 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
   }));
 
   // 4) consignaciones by status
-  const { data: statusCounts } = await supabaseAdmin
+  const { data: statusCounts, error: statusErr } = await supabaseAdmin
     .from("consignaciones")
-    .select("status")
+    .select("estado")
     .gte("created_at", rangeStart)
     .lt("created_at", rangeEndExclusive)
-    .in("status", allowedStatuses);
+    .in("estado", allowedEstados);
+
+  if (statusErr) console.error("Error fetching consignacionesByStatus:", statusErr);
 
   const statusMap = new Map<string, number>();
   for (const r of statusCounts ?? []) {
-    const s = (r as any).status ?? "—";
+    const s = (r as any).estado ?? "—";
     statusMap.set(s, (statusMap.get(s) ?? 0) + 1);
   }
+
   const consignacionesByStatus = Array.from(statusMap.entries()).map(([status, count]) => ({
     status,
     count,
   }));
 
   // 5) ops
-  const { count: openOrdersCount } = await supabaseAdmin
-    .from("pedido_colegios")
+  const { count: openOrdersCount, error: openOrdersErr } = await supabaseAdmin
+    .from("pedidos")
     .select("id", { count: "exact", head: true })
-    .eq("estado", "ABIERTO");
+    .in("estado", ["BORRADOR", "PENDIENTE", "PARCIAL"]);
 
-  const { count: pendingConsCount } = await supabaseAdmin
+  if (openOrdersErr) console.error("Error fetching openOrdersCount:", openOrdersErr);
+
+  const { count: pendingConsCount, error: pendingConsErr } = await supabaseAdmin
     .from("consignaciones")
     .select("id", { count: "exact", head: true })
-    .in("status", ["PENDIENTE", "APROBADA", "DEVOLUCION_PENDIENTE"]);
+    .eq("estado", "ABIERTA");
 
-  const { count: openConsCount } = await supabaseAdmin
+  if (pendingConsErr) console.error("Error fetching pendingConsCount:", pendingConsErr);
+
+  const { count: openConsCount, error: openConsErr } = await supabaseAdmin
     .from("consignaciones")
     .select("id", { count: "exact", head: true })
-    .in("status", ["ABIERTA", "EN_CURSO"]);
+    .eq("estado", "ABIERTA");
 
-  // deliveries in 7 days
-  const { count: deliveriesWeek } = await supabaseAdmin
+  if (openConsErr) console.error("Error fetching openConsCount:", openConsErr);
+
+  const { count: deliveriesWeek, error: delErr } = await supabaseAdmin
     .from("orders")
     .select("id", { count: "exact", head: true })
     .gte("delivery_date", todayStart);
 
-  // 6) alerts - low stock
-  const lowStock: DashboardData["alerts"]["lowStock"] = [];
-  const { data: stockRows } = await supabaseAdmin
-    .from("stock_actual_view")
-    .select("producto_id, internal_id, descripcion, stock_fisico")
-    .order("stock_fisico", { ascending: true })
-    .limit(10);
+  if (delErr) console.error("Error fetching deliveriesWeek:", delErr);
 
-  for (const r of stockRows ?? []) {
-    const stock = Number((r as any).stock_fisico ?? 0);
-    if (stock <= 2) {
-      lowStock.push({
-        productoId: (r as any).producto_id,
-        internalId: (r as any).internal_id ?? null,
-        descripcion: (r as any).descripcion ?? null,
-        stockFisico: stock,
-      });
-    }
-  }
+  // 6) alerts - low stock (✅ FIX internal_id: viene de productos)
+  // 6) alerts - low stock (compatible with minimal stock_actual_view)
+const lowStock: DashboardData["alerts"]["lowStock"] = [];
 
-  // 7) alerts - no price in default list
+const { data: stockRows, error: stockErr } = await supabaseAdmin
+  .from("stock_actual_view")
+  .select("producto_id, stock_fisico") // ✅ only fields that should exist
+  .order("stock_fisico", { ascending: true })
+  .limit(50);
+
+if (stockErr) console.error("Error fetching stock_actual_view:", stockErr);
+
+const lowCandidates = (stockRows ?? [])
+  .map((r: any) => ({
+    producto_id: Number(r.producto_id),
+    stock_fisico: Number(r.stock_fisico ?? 0),
+  }))
+  .filter((r) => Number.isFinite(r.producto_id) && r.stock_fisico <= 2)
+  .slice(0, 5);
+
+const lowIds = lowCandidates.map((r) => r.producto_id);
+
+const { data: lowProdRows, error: lowProdErr } =
+  lowIds.length === 0
+    ? ({ data: [] as any[], error: null } as any)
+    : await supabaseAdmin
+        .from("productos")
+        .select("id, internal_id, descripcion")
+        .in("id", lowIds);
+
+if (lowProdErr) console.error("Error fetching productos for lowStock:", lowProdErr);
+
+const prodById = new Map<number, any>();
+(lowProdRows ?? []).forEach((p: any) => prodById.set(Number(p.id), p));
+
+for (const r of lowCandidates) {
+  const p = prodById.get(r.producto_id);
+  lowStock.push({
+    productoId: String(r.producto_id),
+    internalId: p?.internal_id ?? null,
+    descripcion: p?.descripcion ?? null,
+    stockFisico: r.stock_fisico,
+  });
+}
+
+  // 7) alerts - no price in default list (limit 5)
   const noPrice: DashboardData["alerts"]["noPrice"] = [];
   if (usedPriceListId != null) {
-    const { data: prods } = await supabaseAdmin
+    const { data: prods, error: noPriceErr } = await supabaseAdmin
       .from("productos")
       .select("id, internal_id, descripcion")
-      .limit(200);
+      .limit(500);
 
-    const priced = new Set<string>((prices ?? []).map((p: any) => p.producto_id));
+    if (noPriceErr) console.error("Error fetching productos for noPrice:", noPriceErr);
+
+    const priced = new Set<string>((prices ?? []).map((p: any) => String(p.producto_id)));
     for (const p of prods ?? []) {
-      const id = (p as any).id;
+      const id = String((p as any).id);
       if (!priced.has(id)) {
         noPrice.push({
           productoId: id,
@@ -356,12 +423,12 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
           descripcion: (p as any).descripcion ?? null,
         });
       }
-      if (noPrice.length >= 10) break;
+      if (noPrice.length >= 5) break;
     }
   }
 
-  // ✅ 8) NEW: delivered web sales (paid + delivered)
-  const { data: deliveredOrders } = await supabaseAdmin
+  // 8) delivered web sales (paid + delivered)
+  const { data: deliveredOrders, error: delWebErr } = await supabaseAdmin
     .from("orders")
     .select(
       `
@@ -374,14 +441,16 @@ export async function getDashboardData(input?: { mode?: DashboardMode }): Promis
       delivery_date,
       fulfillment_updated_at,
       payments!inner(status, payment_id)
-    `,
+    `
     )
     .gte("created_at", rangeStart)
     .lt("created_at", rangeEndExclusive)
     .eq("fulfillment_status", "DELIVERED")
     .eq("payments.status", "APPROVED")
     .order("fulfillment_updated_at", { ascending: false })
-    .limit(8);
+    .limit(5);
+
+  if (delWebErr) console.error("Error fetching delivered web sales:", delWebErr);
 
   const deliveredWebSales =
     (deliveredOrders ?? []).map((o: any) => ({

@@ -141,7 +141,7 @@ type DiscountRow = {
   min_subtotal: number | null;
   max_uses: number | null;
   uses_count: number;
-  applies_to: "ALL" | "PRODUCT" | "PRICE_LIST" | "COLEGIO_PRODUCT";
+  applies_to: "ALL" | "PRODUCT" | "PRODUCTS" | "PRICE_LIST" | "COLEGIO_PRODUCT";
   product_id: number | null;
   colegio_id: number | null;
   currency: string | null;
@@ -620,6 +620,19 @@ export async function POST(req: Request) {
         else {
           const eligibleIdx: number[] = [];
 
+            // PRODUCTS scope: code applies to a list of products in discount_products
+            let multiProductSet: Set<number> | null = null;
+            if (row.applies_to === "PRODUCTS") {
+              const { data: dp, error: dpErr } = await supabaseAdmin
+                .from("discount_products")
+                .select("producto_id")
+                .eq("discount_id", row.id);
+
+              if (dpErr) return NextResponse.json({ error: dpErr.message }, { status: 500 });
+
+              multiProductSet = new Set((dp ?? []).map((r: any) => Number(r.producto_id)));
+            }
+
           const buyerColegioId = (buyer as any)?.colegio_id ? Number((buyer as any).colegio_id) : null;
 
           if (!buyerColegioId) {
@@ -629,6 +642,15 @@ export async function POST(req: Request) {
               if (row.applies_to === "ALL") eligibleIdx.push(idx);
 
               if (row.applies_to === "PRODUCT" && row.product_id && it.producto_id === row.product_id) {
+                eligibleIdx.push(idx);
+              }
+
+              if (
+                row.applies_to === "PRODUCTS" &&
+                multiProductSet &&
+                it.producto_id &&
+                multiProductSet.has(Number(it.producto_id))
+              ) {
                 eligibleIdx.push(idx);
               }
 

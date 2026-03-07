@@ -26,7 +26,10 @@ export type PromotionRow = {
   ends_at: string | null;
   max_uses: number | null;
   uses_count: number;
-  applies_to: "ALL" | "PRODUCT" | "PRICE_LIST" | "COLEGIO" | "COLEGIO_PRODUCT";
+  applies_to: "ALL" | "PRODUCT" | "PRODUCTS" | "PRICE_LIST" | "COLEGIO" | "COLEGIO_PRODUCT";
+
+  // for applies_to = PRODUCTS
+  multi_products_count?: number | null;
 
   product_id: number | null;
   product_internal_id: string | null;
@@ -120,12 +123,33 @@ export async function fetchPromotionsPageData(): Promise<{
       colegio:colegios!discounts_colegio_id_fkey (nombre_comercial, ruc)
       `
     )
-    .in("applies_to", ["PRODUCT", "COLEGIO_PRODUCT"])
+    .in("applies_to", ["PRODUCT", "COLEGIO_PRODUCT", "PRODUCTS"])
     .order("created_at", { ascending: false });
 
   if (discErr) throw discErr;
 
-  const promotions: PromotionRow[] = (discounts ?? []).map((d: any) => {
+  
+  // For PRODUCTS scope: count linked products (discount_products)
+  const productsScopeIds = (discounts ?? [])
+    .filter((d: any) => String(d.applies_to) === "PRODUCTS")
+    .map((d: any) => Number(d.id));
+
+  const multiCountMap = new Map<number, number>();
+  if (productsScopeIds.length) {
+    const { data: dp, error: dpErr } = await supabase
+      .from("discount_products")
+      .select("discount_id, producto_id")
+      .in("discount_id", productsScopeIds);
+
+    if (dpErr) throw dpErr;
+
+    for (const r of dp ?? []) {
+      const did = Number((r as any).discount_id);
+      multiCountMap.set(did, (multiCountMap.get(did) ?? 0) + 1);
+    }
+  }
+
+const promotions: PromotionRow[] = (discounts ?? []).map((d: any) => {
     const pid = d.product_id != null ? Number(d.product_id) : null;
     const listPrice = pid != null ? priceMap.get(pid) ?? null : null;
 
@@ -145,6 +169,8 @@ export async function fetchPromotionsPageData(): Promise<{
       max_uses: d.max_uses != null ? Number(d.max_uses) : null,
       uses_count: d.uses_count != null ? Number(d.uses_count) : 0,
       applies_to: String(d.applies_to) as any,
+
+      multi_products_count: multiCountMap.get(Number(d.id)) ?? null,
 
       product_id: pid,
       product_internal_id: d.producto?.internal_id ?? null,
@@ -273,4 +299,119 @@ export async function deletePromotion(id: number) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("discounts").delete().eq("id", id);
   if (error) throw error;
+}
+
+
+// ------------------------------
+// Multi-product discounts (applies_to = PRODUCTS)
+// ------------------------------
+
+export type UpsertMultiPromotionInput = {
+  id?: number;
+  code: string;
+  type: "PERCENT" | "FIXED";
+  value: number;
+  active: boolean;
+
+  // optional (YYYY-MM-DD)
+  starts_date?: string | null;
+  ends_date?: string | null;
+
+  max_uses?: number | null;
+};
+
+function validateMultiInput(input: UpsertMultiPromotionInput) {
+  const code = String(input.code ?? "").trim();
+  if (!code) throw new Error("Code is required.");
+  if (input.type !== "PERCENT" && input.type !== "FIXED") throw new Error("Invalid type.");
+  if (!Number.isFinite(input.value) || input.value < 0) throw new Error("Invalid value.");
+
+  if (input.type === "PERCENT" && input.value > 100) {
+    throw new Error("Percent discount cannot be greater than 100.");
+  }
+
+  if (input.max_uses != null && input.max_uses < 0) throw new Error("Invalid max uses.");
+}
+
+export async function upsertMultiPromotion(input: UpsertMultiPromotionInput) {
+  validateMultiInput(input);
+
+  const supabase = await createSupabaseServerClient();
+
+  const code = String(input.code ?? "").trim().toUpperCase();
+
+  const starts_at =
+    input.starts_date && input.starts_date.trim()
+      ? dateToLimaStart(input.starts_date.trim())
+      : null;
+
+  const ends_at =
+    input.ends_date && input.ends_date.trim()
+      ? dateToLimaEnd(input.ends_date.trim())
+      : null;
+
+  const payload: any = {
+    code,
+    type: input.type,
+    value: input.value,
+    currency: "PEN",
+    active: Boolean(input.active),
+
+    starts_at,
+    ends_at,
+    max_uses: input.max_uses ?? null,
+
+    applies_to: "PRODUCTS",
+    product_id: null,
+    price_list_id: null,
+    colegio_id: null,
+  };
+
+  if (input.id) {
+    const { error } = await supabase.from("discounts").update(payload).eq("id", input.id);
+    if (error) throw error;
+    return;
+  }
+
+  const { data, error } = await supabase.from("discounts").insert(payload).select("id").single();
+  if (error) throw error;
+  return Number((data as any)?.id);
+}
+
+export async function fetchDiscountProducts(discountId: number): Promise<number[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("discount_products")
+    .select("producto_id")
+    .eq("discount_id", discountId);
+
+  if (error) throw error;
+
+  return (data ?? []).map((r: any) => Number(r.producto_id));
+}
+
+export async function saveDiscountProducts(discountId: number, productoIds: number[]) {
+  const supabase = await createSupabaseServerClient();
+
+  const did = Number(discountId);
+  const ids = Array.from(new Set((productoIds ?? []).map((x) => Number(x)).filter((x) => Number.isFinite(x))));
+
+  // Ensure discount is in PRODUCTS scope (and not single-product anymore)
+  const { error: updErr } = await supabase
+    .from("discounts")
+    .update({ applies_to: "PRODUCTS", product_id: null, colegio_id: null, price_list_id: null })
+    .eq("id", did);
+
+  if (updErr) throw updErr;
+
+  // Replace mapping
+  const { error: delErr } = await supabase.from("discount_products").delete().eq("discount_id", did);
+  if (delErr) throw delErr;
+
+  if (ids.length) {
+    const payload = ids.map((pid) => ({ discount_id: did, producto_id: pid }));
+    const { error: insErr } = await supabase.from("discount_products").insert(payload as any);
+    if (insErr) throw insErr;
+  }
 }
