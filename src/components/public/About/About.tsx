@@ -23,7 +23,7 @@ export default function About() {
 
           {/* Right: Content */}
           <div className="aboutLeft">
-            <span className="aboutKicker">PRG DINAMICS</span>
+            <span className="aboutKicker">Dynamic Education</span>
             <h2 className="aboutTitle">Quiénes somos</h2>
 
             <p className="aboutText">
@@ -92,3 +92,4 @@ export default function About() {
     </section>
   );
 }
+
