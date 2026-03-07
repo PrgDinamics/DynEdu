@@ -461,7 +461,7 @@ export default function PerfilClient() {
 
           {/* NEW: Colegio */}
           <div className="perfilField perfilWide">
-            <label>Colegio (para descuentos)</label>
+            <label>Colegio</label>
             <div className="perfilInput">
               <GraduationCap size={16} />
               <select
@@ -512,3 +512,4 @@ export default function PerfilClient() {
     </div>
   );
 }
+
