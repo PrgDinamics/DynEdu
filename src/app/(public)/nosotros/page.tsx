@@ -94,7 +94,7 @@ export default function Page() {
               </p>
             </div>
             <Link href="/contacto" className="btnPrimary">
-              Hablar con PRG Dinamics
+              Hablar con Dynamic Education
             </Link>
           </div>
         </div>
@@ -102,3 +102,4 @@ export default function Page() {
     </main>
   );
 }
+
