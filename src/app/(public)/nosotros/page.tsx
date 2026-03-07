@@ -7,7 +7,7 @@ export default function Page() {
       <section className="aboutHero fade-in-up">
         <div className="aboutHeroInner">
           <div className="aboutHeroContent">
-            <div className="kicker">PRG Dinamics</div>
+            <div className="kicker">Dynamic Education</div>
             <h1>Educación con orden, calidad y compromiso</h1>
 
             <p>

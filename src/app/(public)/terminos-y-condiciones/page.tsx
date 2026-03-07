@@ -1,7 +1,7 @@
 import "./terms.css";
 
 export const metadata = {
-  title: "Términos y Condiciones | PRG Dinamics / DynEdu",
+  title: "Términos y Condiciones | Dynamic education",
   description: "Términos y condiciones de compra y uso del sitio.",
 };
 
@@ -13,7 +13,7 @@ export default function TermsPage() {
         <h2 className="terms-h2">1. Identificación</h2>
         <p className="terms-p">
           El presente documento regula el acceso y uso del sitio web de{" "}
-          <strong>PRG Dinamics / DynEdu</strong> (en adelante, “la Plataforma”),
+          <strong>Dynamic Education</strong> (en adelante, “la Plataforma”),
           así como las condiciones aplicables a la compra de productos ofrecidos
           a través de la Plataforma.
         </p>
