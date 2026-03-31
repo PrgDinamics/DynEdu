@@ -3,6 +3,7 @@
 import "./contact.css";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
 
 type FormState = "idle" | "sending" | "success" | "error";
@@ -32,6 +33,11 @@ export default function Contact() {
   const [topic, setTopic] = useState<string>("campaign");
   const [product, setProduct] = useState<string>("");
 
+  // ✅ NEW: reCAPTCHA token
+  const [captchaToken, setCaptchaToken] = useState<string>("");
+
+  const siteKey = String(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "").trim();
+
   useEffect(() => {
     if (prefillProduct) {
       setProduct(prefillProduct);
@@ -57,6 +63,9 @@ export default function Contact() {
     if (!isEmail(email)) return setErrorMsg("Por favor ingresa un correo válido.");
     if (!message.trim()) return setErrorMsg("Cuéntanos lo que necesitas en el mensaje.");
 
+    // ✅ CAPTCHA required
+    if (!captchaToken) return setErrorMsg("Completa la verificación de seguridad.");
+
     setState("sending");
 
     try {
@@ -71,9 +80,11 @@ export default function Contact() {
           topic,
           product,
           message,
-          // helpful context for DB/email
           source: "public_site",
           productId: prefillId || null,
+
+          // ✅ NEW
+          captchaToken,
         }),
       });
 
@@ -88,15 +99,14 @@ export default function Contact() {
 
       setState("success");
 
-      // optional: clear fields after success
       setName("");
       setEmail("");
       setPhone("");
       setSchool("");
       setMessage("");
-      // keep topic/product if it was prefilled (optional)
-      // setTopic("campaign");
-      // setProduct("");
+
+      // ✅ reset captcha token (force user to check again next time)
+      setCaptchaToken("");
     } catch (err: any) {
       setState("error");
       setErrorMsg(err?.message || "Ocurrió un error al enviar. Intenta de nuevo.");
@@ -230,9 +240,33 @@ export default function Contact() {
               />
             </div>
 
+            {/* ✅ reCAPTCHA (en fila para no romper el layout) */}
+            <div className="form-row">
+              <div className="field">
+                <label>Verificación</label>
+
+                {!siteKey ? (
+                  <div className="form-error">
+                    Falta configurar NEXT_PUBLIC_RECAPTCHA_SITE_KEY.
+                  </div>
+                ) : (
+                  <ReCAPTCHA
+                    sitekey={siteKey}
+                    onChange={(token) => setCaptchaToken(token || "")}
+                    onExpired={() => setCaptchaToken("")}
+                  />
+                )}
+              </div>
+            </div>
+
             {errorMsg ? <div className="form-error">{errorMsg}</div> : null}
 
-            <button className="submit" type="submit" disabled={state === "sending"}>
+            <button
+              className="submit"
+              type="submit"
+              disabled={state === "sending" || !captchaToken}
+              title={!captchaToken ? "Completa la verificación" : ""}
+            >
               <span className="submitInner">
                 <Send size={18} aria-hidden="true" />
                 {state === "sending"
@@ -254,4 +288,3 @@ export default function Contact() {
     </section>
   );
 }
-
