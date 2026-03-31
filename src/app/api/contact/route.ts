@@ -24,6 +24,34 @@ function parseEmailList(raw: string | undefined) {
     .filter((x) => isEmail(x));
 }
 
+// ✅ reCAPTCHA verify (server-side)
+async function verifyRecaptcha(token: string, ip?: string | null) {
+  const secret = String(process.env.RECAPTCHA_SECRET_KEY ?? "").trim();
+  if (!secret) return { ok: false, error: "RECAPTCHA_SECRET_KEY is missing" };
+
+  const t = String(token ?? "").trim();
+  if (!t) return { ok: false, error: "Missing captcha token" };
+
+  const form = new URLSearchParams();
+  form.set("secret", secret);
+  form.set("response", t);
+  if (ip) form.set("remoteip", ip);
+
+  const res = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+    cache: "no-store",
+  });
+
+  const json: any = await res.json().catch(() => null);
+
+  if (!res.ok) return { ok: false, error: "Captcha verify request failed" };
+  if (!json?.success) return { ok: false, error: "Captcha failed" };
+
+  return { ok: true as const };
+}
+
 export async function POST(req: Request) {
   try {
     const toList = parseEmailList(process.env.CONTACT_TO_EMAIL);
@@ -39,6 +67,20 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    // ✅ Captcha token required
+    const captchaToken = safeString(body.captchaToken, 4096);
+
+    const ip =
+      req.headers.get("cf-connecting-ip") ||
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      null;
+
+    // ✅ reCAPTCHA validate
+    const captcha = await verifyRecaptcha(captchaToken, ip);
+    if (!captcha.ok) {
+      return NextResponse.json({ error: "SECURITY_CHECK_FAILED" }, { status: 400 });
     }
 
     const name = safeString(body.name, 120);
@@ -82,8 +124,8 @@ export async function POST(req: Request) {
 
     await resend.emails.send({
       from,
-      to: toList, // ✅ multiple recipients
-      replyTo: email, // reply goes to the person who wrote
+      to: toList,
+      replyTo: email,
       subject: subjectAdmin,
       text: adminText,
     });
@@ -112,7 +154,7 @@ export async function POST(req: Request) {
     await resend.emails.send({
       from,
       to: email,
-      replyTo: toList[0], // ✅ reply goes to your main inbox (first email)
+      replyTo: toList[0],
       subject: subjectUser,
       text: userText,
     });
